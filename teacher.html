@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="ml">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Student Tracker — Reading • Meet • Exams</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+Chettan+2:wght@500;600;700&family=Noto+Sans+Malayalam:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --bg:#f5f4ef; --card:#ffffff; --ink:#1b2030; --muted:#697086;
+  --primary:#15786b; --primary-d:#0f5a50; --accent:#f59e0b;
+  --line:#e7e6df; --soft:#eef3f1;
+  --green:#16a34a; --red:#dc2626; --amber:#d97706; --blue:#2563eb;
+  --shadow:0 1px 3px rgba(20,30,40,.07),0 8px 24px rgba(20,30,40,.05);
+  --r:16px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Noto Sans Malayalam","Baloo Chettan 2",system-ui,sans-serif;
+  font-size:16px;line-height:1.5;padding-bottom:84px}
+h1,h2,h3{font-family:"Baloo Chettan 2","Noto Sans Malayalam",sans-serif;margin:0;font-weight:700;line-height:1.2}
+button{font-family:inherit;cursor:pointer}
+input,select{font-family:inherit;font-size:16px}
+.wrap{max-width:760px;margin:0 auto;padding:0 14px}
+.hidden{display:none!important}
+
+/* Top bar */
+.topbar{background:linear-gradient(135deg,var(--primary),var(--primary-d));color:#fff;padding:16px 14px;
+  position:sticky;top:0;z-index:50;box-shadow:0 2px 12px rgba(15,90,80,.25)}
+.topbar .wrap{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.brand{display:flex;align-items:center;gap:10px}
+.brand .logo{width:38px;height:38px;border-radius:11px;background:rgba(255,255,255,.18);
+  display:grid;place-items:center;font-size:20px}
+.brand b{font-family:"Baloo Chettan 2";font-size:18px;display:block;line-height:1}
+.brand span{font-size:12px;opacity:.85}
+.tb-btn{background:rgba(255,255,255,.16);color:#fff;border:none;border-radius:10px;
+  padding:8px 12px;font-size:13px;font-weight:600}
+
+/* Cards & layout */
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);
+  padding:16px;box-shadow:var(--shadow);margin-top:14px}
+.section-t{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;
+  letter-spacing:.04em;margin:18px 2px 6px}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.row>*{flex:1;min-width:0}
+label.fld{display:block;font-size:13px;font-weight:600;color:var(--muted);margin:0 0 5px 2px}
+.inp{width:100%;padding:13px 14px;border:1.5px solid var(--line);border-radius:12px;background:#fff;
+  color:var(--ink);outline:none;transition:border-color .15s}
+.inp:focus{border-color:var(--primary)}
+select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='none' stroke='%23697086' stroke-width='2'%3E%3Cpath d='M3 5l4 4 4-4'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:38px}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;
+  padding:15px 16px;border:none;border-radius:13px;background:var(--primary);color:#fff;
+  font-weight:700;font-size:16px;box-shadow:0 4px 14px rgba(15,90,80,.22);transition:transform .08s}
+.btn:active{transform:scale(.98)}
+.btn.amber{background:var(--accent);box-shadow:0 4px 14px rgba(245,158,11,.25)}
+.btn.ghost{background:var(--soft);color:var(--primary-d);box-shadow:none;border:1.5px solid var(--line)}
+.btn.sm{width:auto;padding:9px 14px;font-size:14px;border-radius:10px}
+.btn.danger{background:#fde8e8;color:var(--red);box-shadow:none}
+
+/* Bottom nav (admin) */
+.nav{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);
+  display:flex;z-index:60;padding:6px 4px env(safe-area-inset-bottom);box-shadow:0 -2px 16px rgba(0,0,0,.04)}
+.nav button{flex:1;background:none;border:none;color:var(--muted);font-size:10.5px;font-weight:600;
+  display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 2px;border-radius:10px}
+.nav button .ic{font-size:20px;line-height:1}
+.nav button.on{color:var(--primary)}
+.nav button.on .ic{transform:translateY(-1px)}
+
+/* Pills / badges */
+.pill{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;
+  font-size:12.5px;font-weight:700}
+.pill.green{background:#e7f6ec;color:var(--green)}
+.pill.red{background:#fdecec;color:var(--red)}
+.pill.amber{background:#fef3e2;color:var(--amber)}
+.pill.blue{background:#e8f0fe;color:var(--blue)}
+.pill.gray{background:#eef0f3;color:var(--muted)}
+.gb{display:inline-grid;place-items:center;min-width:34px;height:26px;padding:0 7px;border-radius:8px;
+  font-weight:700;font-size:13px;color:#fff}
+.g-Ap{background:#16a34a}.g-A{background:#22a06b}.g-Bp{background:#3b82f6}.g-B{background:#6366f1}
+.g-Cp{background:#f59e0b}.g-C{background:#f97316}.g-D{background:#ef4444}.g-E{background:#991b1b}
+
+/* Lists & tables */
+.lst{display:flex;flex-direction:column;gap:8px}
+.item{display:flex;align-items:center;gap:12px;padding:12px 13px;background:#fff;border:1px solid var(--line);
+  border-radius:13px}
+.item .av{width:40px;height:40px;border-radius:11px;background:var(--soft);color:var(--primary-d);
+  display:grid;place-items:center;font-weight:700;font-size:15px;flex-shrink:0}
+.item .nm{flex:1;min-width:0}
+.item .nm b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item .nm small{color:var(--muted);font-size:12px}
+.tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl th,.tbl td{padding:9px 8px;text-align:left;border-bottom:1px solid var(--line)}
+.tbl th{font-size:12px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+.tbl td.c,.tbl th.c{text-align:center}
+.tbl tr:last-child td{border-bottom:none}
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+
+.stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.stat{background:var(--soft);border-radius:13px;padding:13px}
+.stat .v{font-family:"Baloo Chettan 2";font-size:26px;font-weight:700;line-height:1}
+.stat .l{font-size:12px;color:var(--muted);margin-top:3px}
+.stat.hot{background:#fff5e6}.stat.hot .v{color:var(--accent)}
+
+.seg{display:flex;background:var(--soft);border-radius:12px;padding:4px;gap:4px}
+.seg button{flex:1;border:none;background:none;padding:9px;border-radius:9px;font-weight:600;
+  font-size:13px;color:var(--muted)}
+.seg button.on{background:#fff;color:var(--primary-d);box-shadow:0 1px 4px rgba(0,0,0,.08)}
+
+.empty{text-align:center;color:var(--muted);padding:30px 16px}
+.empty .ic{font-size:38px;opacity:.5}
+.toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%) translateY(20px);
+  background:var(--ink);color:#fff;padding:12px 20px;border-radius:12px;font-weight:600;font-size:14px;
+  opacity:0;pointer-events:none;transition:.25s;z-index:200;max-width:90%;text-align:center}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.sync{font-size:11px;display:flex;align-items:center;gap:5px;color:#cdeee6}
+.dot{width:7px;height:7px;border-radius:50%;background:#7bdcc9}
+.dot.off{background:#f7b955}
+
+.minus,.plus{width:48px;height:48px;border-radius:12px;border:1.5px solid var(--line);background:#fff;
+  font-size:22px;font-weight:700;color:var(--primary);display:grid;place-items:center}
+.modal-bk{position:fixed;inset:0;background:rgba(20,25,35,.5);z-index:100;display:grid;place-items:end center;padding:0}
+.modal{background:#fff;width:100%;max-width:760px;border-radius:20px 20px 0 0;padding:20px 16px 28px;
+  max-height:88vh;overflow:auto;animation:up .25s}
+@keyframes up{from{transform:translateY(40px)}}
+.modal h3{margin-bottom:14px;font-size:19px}
+
+@media print{
+  .topbar,.nav,.no-print,.toast{display:none!important}
+  body{background:#fff;padding:0}
+  .card{box-shadow:none;border:1px solid #ccc;break-inside:avoid}
+}
+</style>
+</head>
+<body>
+
+<!-- ===== TOP BAR ===== -->
+<div class="topbar">
+  <div class="wrap">
+    <div class="brand">
+      <div class="logo">📚</div>
+      <div>
+        <b>Student Tracker</b>
+        <span id="sub">Reading • Meet • Exams</span>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+      <button class="tb-btn" id="roleBtn" onclick="lockApp()">🔒 Lock</button>
+      <div class="sync" id="syncTag"><span class="dot off"></span>Local</div>
+    </div>
+  </div>
+</div>
+
+<div class="wrap" id="app"></div>
+
+<!-- ===== ADMIN BOTTOM NAV ===== -->
+<div class="nav hidden" id="nav">
+  <button data-tab="students" onclick="setTab('students')"><span class="ic">👥</span>Students</button>
+  <button data-tab="reading" onclick="setTab('reading')"><span class="ic">📖</span>Reading</button>
+  <button data-tab="meet" onclick="setTab('meet')"><span class="ic">🎥</span>Meet</button>
+  <button data-tab="exams" onclick="setTab('exams')"><span class="ic">📝</span>Exams</button>
+  <button data-tab="assign" onclick="setTab('assign')"><span class="ic">📋</span>Tasks</button>
+  <button data-tab="perf" onclick="setTab('perf')"><span class="ic">📊</span>Report</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   CONFIG  —  ഇവിടെ മാത്രം മാറ്റുക
+   1) Supabase project ഉണ്ടാക്കി URL + anon key ഇടുക
+   2) Teacher PIN മാറ്റുക
+   ============================================================ */
+const SUPABASE_URL  = "https://fomgindrntvtyycdwmhh.supabase.co";   // e.g. https://xxxx.supabase.co
+const SUPABASE_ANON = "sb_publishable_NhpX4lRHgeEaSQNhwVie5A_tmhKPkkc";
+const TEACHER_PIN   = "5659";                            // teacher login PIN
+const MAX_STUDENTS  = 30;
+
+/* ---------- Supabase / storage layer ---------- */
+let sb=null, ONLINE=false;
+const LS="stTracker_v1";
+let DB={students:[],reading:[],attendance:[],exams:[],exam_marks:[],assignments:[],assign_marks:[]};
+
+function loadLocal(){try{const d=JSON.parse(localStorage.getItem(LS));if(d)DB={...DB,...d};}catch(e){}}
+function saveLocal(){localStorage.setItem(LS,JSON.stringify(DB));}
+
+async function initDB(){
+  loadLocal();
+  if(SUPABASE_URL.startsWith("http")&&SUPABASE_ANON.length>20){
+    try{
+      sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON);
+      await pullAll();
+      ONLINE=true;
+    }catch(e){console.warn("Supabase off:",e);ONLINE=false;}
+  }
+  setSyncTag();
+}
+function setSyncTag(){
+  const t=document.getElementById('syncTag');
+  t.innerHTML = ONLINE
+    ? '<span class="dot"></span>Cloud synced'
+    : '<span class="dot off"></span>Local only';
+}
+async function pullAll(){
+  const T=["students","reading","attendance","exams","exam_marks","assignments","assign_marks"];
+  for(const t of T){
+    const {data,error}=await sb.from(t).select("*");
+    if(!error&&data) DB[t]=data;
+  }
+  saveLocal();
+}
+/* upsert helper: writes cloud (if online) + local mirror */
+async function up(table,row,conflict){
+  // local mirror
+  const arr=DB[table];
+  const keyMatch=(r)=>conflict.every(k=>String(r[k])===String(row[k]));
+  const i=arr.findIndex(keyMatch);
+  if(i>=0) arr[i]={...arr[i],...row}; else arr.push({...row});
+  saveLocal();
+  if(ONLINE){try{await sb.from(table).upsert(row,{onConflict:conflict.join(",")});}catch(e){console.warn(e);}}
+}
+async function del(table,match){
+  DB[table]=DB[table].filter(r=>!Object.keys(match).every(k=>String(r[k])===String(match[k])));
+  saveLocal();
+  if(ONLINE){try{let q=sb.from(table).delete();for(const k in match)q=q.eq(k,match[k]);await q;}catch(e){}}
+}
+
+/* ---------- utils ---------- */
+const todayStr=()=>new Date().toISOString().slice(0,10);
+const fmtDate=(s)=>{const d=new Date(s+'T00:00');return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short'});};
+const initials=(n)=>n.trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase();
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');
+  clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2200);}
+function grade(pct){
+  if(pct>=90)return['A+','Ap'];if(pct>=80)return['A','A'];if(pct>=70)return['B+','Bp'];
+  if(pct>=60)return['B','B'];if(pct>=50)return['C+','Cp'];if(pct>=40)return['C','C'];
+  if(pct>=30)return['D','D'];return['E','E'];}
+function gradeBadge(pct){if(pct==null||isNaN(pct))return '<span class="pill gray">—</span>';
+  const[g,c]=grade(pct);return `<span class="gb g-${c}">${g}</span>`;}
+const activeStudents=()=>DB.students.filter(s=>s.active!==false).sort((a,b)=>a.roll-b.roll);
+
+/* streak: consecutive days up to today with reading>0 */
+function readingStreak(roll){
+  const set=new Set(DB.reading.filter(r=>r.roll==roll&&r.minutes>0).map(r=>r.d));
+  let s=0;let d=new Date();
+  for(;;){const ds=d.toISOString().slice(0,10);
+    if(set.has(ds)){s++;d.setDate(d.getDate()-1);}
+    else if(ds===todayStr()){d.setDate(d.getDate()-1);} // today not yet logged = no break
+    else break;}
+  return s;
+}
+
+/* ============================================================
+   ROUTER
+   ============================================================ */
+let CURRENT="home", TAB="students", studentName=null;
+function goHome(){CURRENT="home";document.getElementById('nav').classList.add('hidden');
+  document.getElementById('roleBtn').classList.add('hidden');renderHome();}
+function lockApp(){document.getElementById('nav').classList.add('hidden');
+  document.getElementById('roleBtn').classList.add('hidden');askPin();}
+function setTab(t){TAB=t;[...document.querySelectorAll('.nav button')].forEach(b=>
+  b.classList.toggle('on',b.dataset.tab===t));renderAdmin();}
+
+/* ============================================================
+   HOME (role select)
+   ============================================================ */
+function renderHome(){
+  document.getElementById('sub').textContent="Reading • Meet • Exams";
+  document.getElementById('app').innerHTML=`
+   <div class="card" style="text-align:center;padding:26px 18px">
+     <div style="font-size:46px">📚</div>
+     <h2 style="margin:8px 0 4px">Student Tracker</h2>
+     <p style="color:var(--muted);margin:0 0 20px">Reading, Meet attendance, exam & assignment marks — ഒരിടത്ത്.</p>
+     <button class="btn" onclick="enterStudent()">📖 ഞാൻ Student — Reading ഇടാൻ</button>
+     <button class="btn ghost" style="margin-top:10px" onclick="askPin()">🔑 Teacher Login</button>
+   </div>
+   <div class="card">
+     <div class="section-t" style="margin-top:0">WhatsApp group-il share cheyyan</div>
+     <p style="font-size:14px;color:var(--muted);margin:0 0 10px">
+       ഈ പേജ് host ചെയ്ത ശേഷം, student-link group-il <b>pin</b> ചെയ്യുക. ലിങ്കിന്റെ അവസാനം
+       <code style="background:var(--soft);padding:1px 5px;border-radius:5px">?v=student</code> ചേർത്താൽ നേരിട്ട് reading entry തുറക്കും.
+     </p>
+     <button class="btn ghost sm" onclick="copyStudentLink()">📋 Student-link copy</button>
+   </div>`;
+}
+function copyStudentLink(){
+  const base=location.href.split('?')[0];
+  navigator.clipboard?.writeText(base+'?v=student').then(()=>toast('Student link copied ✓'))
+    .catch(()=>toast(base+'?v=student'));
+}
+
+/* ============================================================
+   STUDENT SELF-SUBMIT
+   ============================================================ */
+function enterStudent(){
+  CURRENT="student";
+  document.getElementById('roleBtn').classList.remove('hidden');
+  document.getElementById('nav').classList.add('hidden');
+  document.getElementById('sub').textContent="Reading entry";
+  renderStudent();
+}
+function renderStudent(){
+  const studs=activeStudents();
+  const app=document.getElementById('app');
+  if(!studs.length){app.innerHTML=`<div class="card empty"><div class="ic">🕊️</div>
+    <p>Teacher ഇതുവരെ students-നെ ചേർത്തിട്ടില്ല.<br>കുറച്ച് കഴിഞ്ഞ് വീണ്ടും നോക്കൂ.</p></div>`;return;}
+  const r=studentName?DB.reading.find(x=>x.roll==studentName&&x.d===todayStr()):null;
+  const cur=r?r.minutes:0;
+  const submittedToday=DB.reading.filter(x=>x.d===todayStr()&&x.minutes>0)
+    .map(x=>DB.students.find(s=>s.roll==x.roll)).filter(Boolean).sort((a,b)=>a.roll-b.roll);
+
+  app.innerHTML=`
+   <div class="card">
+     <label class="fld">നിന്റെ പേര് തിരഞ്ഞെടുക്കൂ</label>
+     <select class="inp" id="stuSel" onchange="studentName=this.value;renderStudent()">
+       <option value="">— പേര് select ചെയ്യൂ —</option>
+       ${studs.map(s=>`<option value="${s.roll}" ${studentName==s.roll?'selected':''}>${s.roll}. ${s.name}</option>`).join('')}
+     </select>
+     ${studentName?`
+       <div style="margin-top:16px;text-align:center">
+         <div style="color:var(--muted);font-size:13px">ഇന്നത്തെ വായന — ${new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})}</div>
+         <div style="display:flex;align-items:center;justify-content:center;gap:14px;margin:14px 0">
+           <button class="minus" onclick="stepMin(-5)">−</button>
+           <div><span id="minVal" style="font-family:'Baloo Chettan 2';font-size:48px;font-weight:700">${cur}</span>
+           <div style="color:var(--muted);font-size:13px;margin-top:-4px">മിനിറ്റ്</div></div>
+           <button class="plus" onclick="stepMin(5)">+</button>
+         </div>
+         <div class="seg" style="max-width:280px;margin:0 auto 16px">
+           ${[15,30,45,60].map(v=>`<button onclick="setMin(${v})">${v}</button>`).join('')}
+         </div>
+         <button class="btn amber" onclick="submitReading()">✓ ഇന്നത്തെ വായന സേവ് ചെയ്യൂ</button>
+         <div style="margin-top:14px;display:flex;gap:10px">
+           <div class="stat hot" style="flex:1"><div class="v">🔥 ${readingStreak(studentName)}</div><div class="l">ദിവസം streak</div></div>
+           <div class="stat" style="flex:1"><div class="v">${DB.reading.filter(x=>x.roll==studentName).reduce((a,b)=>a+(+b.minutes||0),0)}</div><div class="l">മൊത്തം മിനിറ്റ്</div></div>
+         </div>
+       </div>`:''}
+   </div>
+   <div class="card">
+     <div class="section-t" style="margin-top:0">ഇന്ന് സേവ് ചെയ്തവർ (${submittedToday.length}/${studs.length})</div>
+     ${submittedToday.length?`<div class="row" style="gap:7px">${submittedToday.map(s=>
+        `<span class="pill green" style="flex:0">✓ ${s.name.split(' ')[0]}</span>`).join('')}</div>`
+       :`<p style="color:var(--muted);font-size:14px;margin:0">ഇതുവരെ ആരും ഇട്ടിട്ടില്ല — നീ ആദ്യം! 🚀</p>`}
+   </div>`;
+  window._tmpMin=cur;
+}
+function stepMin(d){window._tmpMin=Math.max(0,Math.min(600,(window._tmpMin||0)+d));
+  document.getElementById('minVal').textContent=window._tmpMin;}
+function setMin(v){window._tmpMin=v;document.getElementById('minVal').textContent=v;}
+async function submitReading(){
+  if(!studentName){toast('പേര് select ചെയ്യൂ');return;}
+  await up('reading',{roll:+studentName,d:todayStr(),minutes:window._tmpMin||0},['roll','d']);
+  const nm=DB.students.find(s=>s.roll==studentName)?.name||'';
+  toast(`✓ ${window._tmpMin||0} മിനിറ്റ് സേവ് ആയി!`);
+  renderStudent();
+}
+
+/* ============================================================
+   TEACHER LOGIN
+   ============================================================ */
+function askPin(){
+  document.getElementById('app').innerHTML=`
+   <div class="card" style="max-width:340px;margin:30px auto;text-align:center">
+     <div style="font-size:40px">🔑</div>
+     <h3 style="margin:6px 0 14px">Teacher PIN</h3>
+     <input class="inp" id="pin" type="password" inputmode="numeric" placeholder="• • • •"
+       style="text-align:center;letter-spacing:8px;font-size:22px" onkeydown="if(event.key==='Enter')checkPin()">
+     <button class="btn" style="margin-top:14px" onclick="checkPin()">Login</button>
+     <button class="btn ghost" style="margin-top:8px" onclick="goHome()">Cancel</button>
+   </div>`;
+  setTimeout(()=>document.getElementById('pin').focus(),100);
+}
+function checkPin(){
+  if(document.getElementById('pin').value===TEACHER_PIN){enterAdmin();}
+  else toast('തെറ്റായ PIN');
+}
+function enterAdmin(){
+  CURRENT="admin";
+  document.getElementById('roleBtn').classList.remove('hidden');
+  document.getElementById('nav').classList.remove('hidden');
+  setTab('students');
+}
+
+/* ============================================================
+   ADMIN
+   ============================================================ */
+function renderAdmin(){
+  document.getElementById('sub').textContent="Teacher dashboard";
+  ({students:renderStudentsTab,reading:renderReadingTab,meet:renderMeetTab,
+    exams:renderExamsTab,assign:renderAssignTab,perf:renderPerfTab}[TAB])();
+}
+
+/* ---- STUDENTS ---- */
+function renderStudentsTab(){
+  const s=activeStudents();
+  document.getElementById('app').innerHTML=`
+   <div class="card">
+     <div style="display:flex;justify-content:space-between;align-items:center">
+       <h3>Students <span style="color:var(--muted);font-weight:600;font-size:14px">(${s.length}/${MAX_STUDENTS})</span></h3>
+       <button class="btn sm" style="width:auto" onclick="addStudent()" ${s.length>=MAX_STUDENTS?'disabled':''}>+ Add</button>
+     </div>
+     <div class="lst" style="margin-top:14px">
+       ${s.length?s.map(x=>`<div class="item">
+         <div class="av">${initials(x.name)}</div>
+         <div class="nm"><b>${x.name}</b><small>Roll ${x.roll} · 🔥${readingStreak(x.roll)} streak</small></div>
+         <button class="btn ghost sm" onclick="addStudent(${x.roll})">✎</button>
+         <button class="btn danger sm" onclick="rmStudent(${x.roll})">✕</button>
+       </div>`).join(''):'<div class="empty"><div class="ic">👥</div><p>Students ചേർക്കൂ — "+ Add"</p></div>'}
+     </div>
+   </div>`;
+}
+function addStudent(roll){
+  const ex=roll?DB.students.find(s=>s.roll==roll):null;
+  const nextRoll=ex?ex.roll:(Math.max(0,...DB.students.map(s=>+s.roll))+1);
+  openModal(`${ex?'Edit':'Add'} Student`,`
+    <label class="fld">Roll no.</label>
+    <input class="inp" id="m_roll" type="number" value="${nextRoll}" ${ex?'readonly':''}>
+    <label class="fld" style="margin-top:12px">Name</label>
+    <input class="inp" id="m_name" value="${ex?ex.name:''}" placeholder="Student പേര്">
+    <button class="btn" style="margin-top:16px" onclick="saveStudent(${ex?ex.roll:'null'})">Save</button>`);
+  setTimeout(()=>document.getElementById('m_name').focus(),100);
+}
+async function saveStudent(oldRoll){
+  const roll=+document.getElementById('m_roll').value, name=document.getElementById('m_name').value.trim();
+  if(!name){toast('Name വേണം');return;}
+  if(oldRoll==null && DB.students.some(s=>s.roll==roll)){toast('Roll already exists');return;}
+  await up('students',{roll,name,active:true},['roll']);
+  closeModal();renderStudentsTab();toast('Saved ✓');
+}
+async function rmStudent(roll){
+  if(!confirm('Remove this student? (reading/marks remain)'))return;
+  await del('students',{roll});renderStudentsTab();
+}
+
+/* ---- READING (admin view/correct) ---- */
+let readDate=todayStr();
+function renderReadingTab(){
+  const s=activeStudents();
+  const rows=s.map(st=>{const r=DB.reading.find(x=>x.roll==st.roll&&x.d===readDate);
+    return{st,min:r?r.minutes:null};});
+  const done=rows.filter(r=>r.min>0).length;
+  document.getElementById('app').innerHTML=`
+   <div class="card">
+     <h3>Reading log</h3>
+     <label class="fld" style="margin-top:12px">തീയതി</label>
+     <input class="inp" type="date" value="${readDate}" onchange="readDate=this.value;renderReadingTab()">
+     <div class="stat-grid" style="margin-top:12px">
+       <div class="stat"><div class="v">${done}/${s.length}</div><div class="l">ഇട്ടവർ</div></div>
+       <div class="stat"><div class="v">${rows.reduce((a,b)=>a+(b.min||0),0)}</div><div class="l">മൊത്തം മിനിറ്റ്</div></div>
+     </div>
+   </div>
+   <div class="card">
+     <div class="section-t" style="margin-top:0">Edit / correct</div>
+     <div class="lst">
+       ${rows.map(r=>`<div class="item">
+         <div class="av">${initials(r.st.name)}</div>
+         <div class="nm"><b>${r.st.name}</b><small>Roll ${r.st.roll}</small></div>
+         <input class="inp" style="width:78px;text-align:center" type="number" min="0" value="${r.min!=null?r.min:''}"
+            placeholder="—" onchange="setReading(${r.st.roll},this.value)">
+       </div>`).join('')}
+     </div>
+   </div>
+   <div class="card">
+     <div class="section-t" style="margin-top:0">🏆 Reading leaderboard (streak)</div>
+     <div class="lst">
+       ${[...s].map(st=>({st,sk:readingStreak(st.roll),tot:DB.reading.filter(x=>x.roll==st.roll).reduce((a,b)=>a+(+b.minutes||0),0)}))
+         .sort((a,b)=>b.sk-a.sk||b.tot-a.tot).slice(0,10).map((o,i)=>`<div class="item">
+         <div class="av" style="background:${i<3?'#fff5e6':'var(--soft)'}">${['🥇','🥈','🥉'][i]||i+1}</div>
+         <div class="nm"><b>${o.st.name}</b><small>${o.tot} മിനിറ്റ് മൊത്തം</small></div>
+         <span class="pill amber">🔥 ${o.sk}</span>
+       </div>`).join('')}
+     </div>
+   </div>`;
+}
+async function setReading(roll,val){
+  await up('reading',{roll:+roll,d:readDate,minutes:val===''?0:+val},['roll','d']);
+  toast('Updated ✓');
+}
+
+/* ---- MEET ATTENDANCE ---- */
+let meetDate=todayStr();
+function renderMeetTab(){
+  const s=activeStudents();
+  const get=(roll)=>DB.attendance.find(a=>a.roll==roll&&a.d===meetDate)?.status||null;
+  const cnt=(st)=>s.filter(x=>get(x.roll)===st).length;
+  document.getElementById('app').innerHTML=`
+   <div class="card">
+     <h3>🎥 Google Meet attendance</h3>
+     <label class="fld" style="margin-top:12px">Session തീയതി</label>
+     <input class="inp" type="date" value="${meetDate}" onchange="meetDate=this.value;renderMeetTab()">
+     <div class="row" style="margin-top:10px">
+       <button class="btn ghost sm" onclick="bulkMark('present')">എല്ലാവരും Present</button>
+       <button class="btn ghost sm" onclick="bulkMark(null)">Clear</button>
+     </div>
+     <div class="row" style="margin-top:10px;gap:8px">
+       <span class="pill green" style="flex:0">P ${cnt('present')}</span>
+       <span class="pill amber" style="flex:0">Late ${cnt('late')}</span>
+       <span class="pill red" style="flex:0">A ${cnt('absent')}</span>
+     </div>
+   </div>
+   <div class="card">
+     <div class="lst">
+       ${s.map(st=>{const v=get(st.roll);return `<div class="item">
+         <div class="av">${initials(st.name)}</div>
+         <div class="nm"><b>${st.name}</b><small>Roll ${st.roll}</small></div>
+         <div class="seg" style="width:auto;flex:0">
+           <button class="${v==='present'?'on':''}" style="color:var(--green)" onclick="setAtt(${st.roll},'present')">P</button>
+           <button class="${v==='late'?'on':''}" style="color:var(--amber)" onclick="setAtt(${st.roll},'late')">L</button>
+           <button class="${v==='absent'?'on':''}" style="color:var(--red)" onclick="setAtt(${st.roll},'absent')">A</button>
+         </div>
+       </div>`;}).join('')}
+     </div>
+   </div>`;
+}
+async function setAtt(roll,status){await up('attendance',{roll:+roll,d:meetDate,status},['roll','d']);renderMeetTab();}
+async function bulkMark(status){
+  for(const st of activeStudents()){
+    if(status===null) await del('attendance',{roll:st.roll,d:meetDate});
+    else await up('attendance',{roll:st.roll,d:meetDate,status},['roll','d']);
+  }
+  renderMeetTab();toast(status?'All present ✓':'Cleared');
+}
+
+/* ---- EXAMS ---- */
+let curExam=null;
+function renderExamsTab(){
+  const ex=[...DB.exams].sort((a,b)=>(b.d||'').localeCompare(a.d||''));
+  if(curExam){renderExamMarks();return;}
+  document.getElementById('app').innerHTML=`
+   <div class="card">
+     <div style="display:flex;justify-content:space-between;align-items:center">
+       <h3>📝 Exams</h3><button class="btn sm" style="width:auto" onclick="newExam()">+ New exam</button>
+     </div>
+     <div class="lst" style="margin-top:14px">
+       ${ex.length?ex.map(e=>{const n=DB.exam_marks.filter(m=>m.exam_id==e.id).length;return `<div class="item" onclick="curExam=${e.id};renderExamsTab()">
+         <div class="av">📝</div>
+         <div class="nm"><b>${e.name}</b><small>${e.subject||'—'} · /${e.max} · ${e.d?fmtDate(e.d):''}</small></div>
+         <span class="pill ${n?'green':'gray'}">${n} marks</span>
+       </div>`;}).join(''):'<div class="empty"><div class="ic">📝</div><p>Exam ഉണ്ടാക്കൂ</p></div>'}
+     </div>
+   </div>`;
+}
+function newExam(){
+  openModal('New exam',`
+    <label class="fld">Exam name</label><input class="inp" id="e_name" placeholder="e.g. Unit Test 1">
+    <div class="row" style="margin-top:12px">
+      <div><label class="fld">Subject</label><input class="inp" id="e_sub" placeholder="Physics"></div>
+      <div><label class="fld">Max marks</label><input class="inp" id="e_max" type="number" value="40"></div>
+    </div>
+    <label class="fld" style="margin-top:12px">Date</label><input class="inp" id="e_date" type="date" value="${todayStr()}">
+    <button class="btn" style="margin-top:16px" onclick="saveExam()">Create</button>`);
+}
+async function saveExam(){
+  const name=document.getElementById('e_name').value.trim();
+  if(!name){toast('Name വേണം');return;}
+  const id=Date.now();
+  await up('exams',{id,name,subject:document.getElementById('e_sub').value.trim(),
+    max:+document.getElementById('e_max').value||40,d:document.getElementById('e_date').value},['id']);
+  closeModal();renderExamsTab();
+}
+function renderExamMarks(){
+  const e=DB.exams.find(x=>x.id==curExam);const s=activeStudents();
+  document.getElementById('app').innerHTML=`
+   <div class="card">
+     <button class="btn ghost sm" onclick="curExam=null;renderExamsTab()">← Back</button>
+     <h3 style="margin-top:12px">${e.name}</h3>
+     <p style="color:var(--muted);margin:4px 0 0">${e.subject||''} · max ${e.max} · ${e.d?fmtDate(e.d):''}</p>
+     <button class="btn danger sm" style="width:auto;margin-top:10px" onclick="rmExam(${e.id})">Delete exam</button>
+   </div>
+   <div class="card">
+     <div class="lst">
+       ${s.map(st=>{const m=DB.exam_marks.find(x=>x.exam_id==e.id&&x.roll==st.roll);
+        const pct=m?Math.round(m.marks/e.max*100):null;return `<div class="item">
+         <div class="av">${initials(st.name)}</div>
+         <div class="nm"><b>${st.name}</b><small>Roll ${st.roll}</small></div>
+         ${gradeBadge(pct)}
+         <input class="inp" style="width:72px;text-align:center" type="number" min="0" max="${e.max}"
+            value="${m?m.marks:''}" placeholder="—" onchange="setExamMark(${e.id},${st.roll},this.value)">
+       </div>`;}).join('')}
+     </div>
+   </div>`;
+}
+async function setExamMark(eid,roll,val){
+  await up('exam_marks',{exam_id:+eid,roll:+roll,marks:val===''?null:+val},['exam_id','roll']);
+  renderExamMarks();
+}
+async function rmExam(id){if(!confirm('Delete exam + its marks?'))return;
+  await del('exams',{id});DB.exam_marks=DB.exam_marks.filter(m=>m.exam_id!=id);saveLocal();
+  curExam=null;renderExamsTab();}
+
+/* ---- ASSIGNMENTS ---- */
+let curAsg=null;
+function renderAssignTab(){
+  if(curAsg){renderAsgMarks();return;}
+  const a=[...DB.assignments].sort((x,y)=>(y.due||'').localeCompare(x.due||''));
+  document.getElementById('app').innerHTML=`
+   <div class="card">
+     <div style="display:flex;justify-content:space-between;align-items:center">
+       <h3>📋 Assignments</h3><button class="btn sm" style="width:auto" onclick="newAsg()">+ New</button>
+     </div>
+     <div class="lst" style="margin-top:14px">
+       ${a.length?a.map(t=>{const sub=DB.assign_marks.filter(m=>m.aid==t.id&&m.status==='submitted').length;
+        return `<div class="item" onclick="curAsg=${t.id};renderAssignTab()">
+         <div class="av">📋</div>
+         <div class="nm"><b>${t.title}</b><small>/${t.max} · due ${t.due?fmtDate(t.due):'—'}</small></div>
+         <span class="pill ${sub?'green':'gray'}">${sub} done</span>
+       </div>`;}).join(''):'<div class="empty"><div class="ic">📋</div><p>Assignment ഉണ്ടാക്കൂ</p></div>'}
+     </div>
+   </div>`;
+}
+function newAsg(){
+  openModal('New assignment',`
+    <label class="fld">Title</label><input class="inp" id="a_title" placeholder="e.g. Ch.3 problems">
+    <div class="row" style="margin-top:12px">
+      <div><label class="fld">Max marks</label><input class="inp" id="a_max" type="number" value="10"></div>
+      <div><label class="fld">Due date</label><input class="inp" id="a_due" type="date" value="${todayStr()}"></div>
+    </div>
+    <button class="btn" style="margin-top:16px" onclick="saveAsg()">Create</button>`);
+}
+async function saveAsg(){
+  const title=document.getElementById('a_title').value.trim();if(!title){toast('Title വേണം');return;}
+  const id=Date.now();
+  await up('assignments',{id,title,max:+document.getElementById('a_max').value||10,
+    due:document.getElementById('a_due').value},['id']);
+  closeModal();renderAssignTab();
+}
+function renderAsgMarks(){
+  const t=DB.assignments.find(x=>x.id==curAsg);const s=activeStudents();
+  document.getElementById('app').innerHTML=`
+   <div class="card">
+     <button class="btn ghost sm" onclick="curAsg=null;renderAssignTab()">← Back</button>
+     <h3 style="margin-top:12px">${t.title}</h3>
+     <p style="color:var(--muted);margin:4px 0 0">max ${t.max} · due ${t.due?fmtDate(t.due):'—'}</p>
+     <button class="btn danger sm" style="width:auto;margin-top:10px" onclick="rmAsg(${t.id})">Delete</button>
+   </div>
+   <div class="card">
+     <div class="lst">
+       ${s.map(st=>{const m=DB.assign_marks.find(x=>x.aid==t.id&&x.roll==st.roll);
+        const done=m&&m.status==='submitted';return `<div class="item">
+         <div class="av">${initials(st.name)}</div>
+         <div class="nm"><b>${st.name}</b><small>Roll ${st.roll}</small></div>
+         <button class="btn ${done?'':'ghost'} sm" style="width:auto" onclick="toggleSub(${t.id},${st.roll})">${done?'✓ Done':'Mark'}</button>
+         <input class="inp" style="width:64px;text-align:center" type="number" min="0" max="${t.max}"
+            value="${m&&m.marks!=null?m.marks:''}" placeholder="—" onchange="setAsgMark(${t.id},${st.roll},this.value)">
+       </div>`;}).join('')}
+     </div>
+   </div>`;
+}
+async function toggleSub(aid,roll){
+  const m=DB.assign_marks.find(x=>x.aid==aid&&x.roll==roll);
+  const ns=(m&&m.status==='submitted')?'pending':'submitted';
+  await up('assign_marks',{aid:+aid,roll:+roll,status:ns,marks:m?m.marks:null},['aid','roll']);
+  renderAsgMarks();
+}
+async function setAsgMark(aid,roll,val){
+  const m=DB.assign_marks.find(x=>x.aid==aid&&x.roll==roll);
+  await up('assign_marks',{aid:+aid,roll:+roll,marks:val===''?null:+val,
+    status:m?m.status:'submitted'},['aid','roll']);
+  renderAsgMarks();
+}
+async function rmAsg(id){if(!confirm('Delete assignment?'))return;
+  await del('assignments',{id});DB.assign_marks=DB.assign_marks.filter(m=>m.aid!=id);saveLocal();
+  curAsg=null;renderAssignTab();}
+
+/* ============================================================
+   PERFORMANCE / REPORT
+   ============================================================ */
+function perfOf(roll){
+  const rd=DB.reading.filter(r=>r.roll==roll);
+  const readMin=rd.reduce((a,b)=>a+(+b.minutes||0),0);
+  const readDays=rd.filter(r=>r.minutes>0).length;
+  const sessions=[...new Set(DB.attendance.map(a=>a.d))];
+  const myAtt=DB.attendance.filter(a=>a.roll==roll);
+  const present=myAtt.filter(a=>a.status==='present').length;
+  const late=myAtt.filter(a=>a.status==='late').length;
+  const attPct=sessions.length?Math.round((present+late*0.5)/sessions.length*100):null;
+  // exams
+  let ePctArr=[];
+  DB.exams.forEach(e=>{const m=DB.exam_marks.find(x=>x.exam_id==e.id&&x.roll==roll);
+    if(m&&m.marks!=null)ePctArr.push(m.marks/e.max*100);});
+  const examPct=ePctArr.length?Math.round(ePctArr.reduce((a,b)=>a+b)/ePctArr.length):null;
+  // assignments
+  let aPctArr=[],subC=0;
+  DB.assignments.forEach(t=>{const m=DB.assign_marks.find(x=>x.aid==t.id&&x.roll==roll);
+    if(m&&m.status==='submitted')subC++;
+    if(m&&m.marks!=null)aPctArr.push(m.marks/t.max*100);});
+  const asgPct=aPctArr.length?Math.round(aPctArr.reduce((a,b)=>a+b)/aPctArr.length):null;
+  const asgRate=DB.assignments.length?Math.round(subC/DB.assignments.length*100):null;
+  // overall = avg of available components
+  const comp=[attPct,examPct,asgPct].filter(v=>v!=null);
+  const overall=comp.length?Math.round(comp.reduce((a,b)=>a+b)/comp.length):null;
+  return{readMin,readDays,streak:readingStreak(roll),attPct,present,late,
+    sessions:sessions.length,examPct,asgPct,asgRate,subC,overall};
+}
+function renderPerfTab(){
+  const s=activeStudents();
+  const ranked=s.map(st=>({st,p:perfOf(st.roll)}))
+    .sort((a,b)=>(b.p.overall??-1)-(a.p.overall??-1));
+  document.getElementById('app').innerHTML=`
+   <div class="card no-print">
+     <div style="display:flex;justify-content:space-between;align-items:center">
+       <h3>📊 Class performance</h3>
+       <button class="btn ghost sm" style="width:auto" onclick="window.print()">🖨️ Print</button>
+     </div>
+     <p style="color:var(--muted);font-size:13px;margin:8px 0 0">Overall = Attendance, Exam, Assignment ശരാശരി. Student പേരിൽ ടാപ്പ് ചെയ്താൽ report card.</p>
+   </div>
+   <div class="card">
+     <div class="scroll"><table class="tbl">
+       <thead><tr><th>#</th><th>Name</th><th class="c">🔥</th><th class="c">Att%</th><th class="c">Exam</th><th class="c">Task</th><th class="c">Overall</th></tr></thead>
+       <tbody>
+       ${ranked.map((o,i)=>`<tr onclick="showReport(${o.st.roll})" style="cursor:pointer">
+         <td>${i+1}</td>
+         <td><b>${o.st.name}</b></td>
+         <td class="c">${o.p.streak}</td>
+         <td class="c">${o.p.attPct!=null?o.p.attPct+'%':'—'}</td>
+         <td class="c">${gradeBadge(o.p.examPct)}</td>
+         <td class="c">${gradeBadge(o.p.asgPct)}</td>
+         <td class="c">${gradeBadge(o.p.overall)}</td>
+       </tr>`).join('')}
+       </tbody>
+     </table></div>
+   </div>`;
+}
+function showReport(roll){
+  const st=DB.students.find(s=>s.roll==roll);const p=perfOf(roll);
+  const s=activeStudents();
+  const rank=s.map(x=>({roll:x.roll,o:perfOf(x.roll).overall??-1})).sort((a,b)=>b.o-a.o)
+    .findIndex(x=>x.roll==roll)+1;
+  openModal(`Report — ${st.name}`,`
+    <div style="text-align:center;margin-bottom:6px">
+      <div class="av" style="width:60px;height:60px;font-size:22px;margin:0 auto 8px;border-radius:16px">${initials(st.name)}</div>
+      <div style="color:var(--muted);font-size:13px">Roll ${st.roll} · Class rank #${rank}/${s.length}</div>
+      <div style="margin-top:8px">${gradeBadge(p.overall)} <b style="font-size:20px">${p.overall!=null?p.overall+'%':'—'}</b> overall</div>
+    </div>
+    <div class="stat-grid" style="margin-top:12px">
+      <div class="stat hot"><div class="v">🔥 ${p.streak}</div><div class="l">Reading streak</div></div>
+      <div class="stat"><div class="v">${p.readMin}</div><div class="l">Total min (${p.readDays} ദിവസം)</div></div>
+      <div class="stat"><div class="v">${p.attPct!=null?p.attPct+'%':'—'}</div><div class="l">Meet attendance (${p.present}/${p.sessions})</div></div>
+      <div class="stat"><div class="v">${p.examPct!=null?p.examPct+'%':'—'}</div><div class="l">Exam average</div></div>
+      <div class="stat"><div class="v">${p.asgPct!=null?p.asgPct+'%':'—'}</div><div class="l">Assignment marks</div></div>
+      <div class="stat"><div class="v">${p.asgRate!=null?p.asgRate+'%':'—'}</div><div class="l">Submitted (${p.subC}/${DB.assignments.length})</div></div>
+    </div>
+    <div class="section-t">Exam-wise</div>
+    <div class="scroll"><table class="tbl"><tbody>
+      ${DB.exams.map(e=>{const m=DB.exam_marks.find(x=>x.exam_id==e.id&&x.roll==roll);
+        return `<tr><td>${e.name}<br><small style="color:var(--muted)">${e.subject||''}</small></td>
+        <td class="c">${m&&m.marks!=null?m.marks+'/'+e.max:'—'}</td>
+        <td class="c">${m&&m.marks!=null?gradeBadge(Math.round(m.marks/e.max*100)):'—'}</td></tr>`;}).join('')
+        ||'<tr><td style="color:var(--muted)">Exams ഇല്ല</td></tr>'}
+    </tbody></table></div>
+    <button class="btn ghost" style="margin-top:16px" onclick="closeModal()">Close</button>`);
+}
+
+/* ============================================================
+   MODAL
+   ============================================================ */
+function openModal(title,html){
+  let m=document.getElementById('modal');
+  if(!m){m=document.createElement('div');m.className='modal-bk';m.id='modal';
+    m.onclick=(e)=>{if(e.target===m)closeModal();};document.body.appendChild(m);}
+  m.innerHTML=`<div class="modal"><h3>${title}</h3>${html}</div>`;
+}
+function closeModal(){const m=document.getElementById('modal');if(m)m.remove();}
+
+/* ============================================================
+   BOOT
+   ============================================================ */
+(async function(){
+  document.getElementById('roleBtn').classList.add('hidden');
+  document.getElementById('sub').textContent="Teacher only";
+  await initDB();
+  askPin();
+})();
+</script>
+</body>
+</html>
