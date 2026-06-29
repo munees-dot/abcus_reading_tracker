@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ml">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -57,21 +57,53 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
 </head>
 <body>
 <div class="topbar"><div class="in">
-  <div class="brand"><div class="logo">📖</div><div><b>ഇന്നത്തെ വായന</b><span>Daily reading log</span></div></div>
+  <div class="brand"><div class="logo">📖</div><div><b>Today's Reading</b><span>Daily reading log</span></div></div>
   <div class="sync" id="syncTag"><span class="dot off"></span>...</div>
 </div></div>
 <div class="wrap" id="app"></div>
 <div class="toast" id="toast"></div>
 
 <script>
-/* ===== CONFIG — Supabase URL + anon key മാത്രം (PIN ഇല്ല) ===== */
+/* ===== CONFIG — Supabase URL + anon key only (no PIN) ===== */
 const SUPABASE_URL  = "https://fomgindrntvtyycdwmhh.supabase.co";
 const SUPABASE_ANON = "sb_publishable_NhpX4lRHgeEaSQNhwVie5A_tmhKPkkc";
 
 let sb=null, ONLINE=false;
 const LS="stReading_v1";
 let DB={students:[],reading:[]};
-function loadLocal(){try{const d=JSON.parse(localStorage.getItem(LS));if(d)DB={...DB,...d};}catch(e){}}
+const PRESET_STUDENTS=[
+  {roll:1,name:"ABDU SAMAD PP",active:true},
+  {roll:2,name:"MUHAMMED NABIH KP",active:true},
+  {roll:3,name:"MUHAMMED ANSIF",active:true},
+  {roll:4,name:"FATHIMA RAFNA K",active:true},
+  {roll:5,name:"AYSHA NASEEBA",active:true},
+  {roll:6,name:"ASWIN",active:true},
+  {roll:7,name:"AHAMMED SHAMIL K",active:true},
+  {roll:8,name:"ABHAY KRISHNA KK",active:true},
+  {roll:9,name:"AFEEF C",active:true},
+  {roll:10,name:"RISHA FATHIMA",active:true},
+  {roll:11,name:"MUHAMMED HASIM KV",active:true},
+  {roll:12,name:"MIRSHA RASLAN",active:true},
+  {roll:13,name:"MUHAMMED MUZAMMIL KT",active:true},
+  {roll:14,name:"ADHITYAN T",active:true},
+  {roll:15,name:"RIYA P",active:true},
+  {roll:16,name:"ARJUN",active:true},
+  {roll:17,name:"MUHAMMED DANISH",active:true},
+  {roll:18,name:"SANA NAZRIN MK",active:true},
+  {roll:19,name:"ABHINAV KRISHNA K",active:true},
+  {roll:20,name:"ZAYAN K",active:true},
+  {roll:21,name:"FAHIS C",active:true},
+  {roll:22,name:"SABIN KRISHNA",active:true},
+  {roll:23,name:"ABHAY KRISHNA P",active:true},
+  {roll:24,name:"MUHAMMED FAHEEM K",active:true},
+  {roll:25,name:"FATHIMA AMNA K",active:true},
+  {roll:26,name:"MUHAMMED MISHAL",active:true},
+  {roll:27,name:"MUHAMMED RISHAL UP",active:true},
+];
+function loadLocal(){
+  try{const d=JSON.parse(localStorage.getItem(LS));if(d)DB={...DB,...d};}catch(e){}
+  if(!DB.students.length){DB.students=PRESET_STUDENTS.map(s=>({...s}));}
+}
 function saveLocal(){localStorage.setItem(LS,JSON.stringify(DB));}
 
 async function initDB(){
@@ -101,16 +133,16 @@ let studentName=null;
 function render(){
   const studs=activeStudents(),app=document.getElementById('app');
   if(!studs.length){app.innerHTML=`<div class="card empty"><div class="ic">🕊️</div>
-    <p>Teacher ഇതുവരെ students-നെ ചേർത്തിട്ടില്ല.<br>കുറച്ച് കഴിഞ്ഞ് വീണ്ടും നോക്കൂ.</p></div>`;return;}
+    <p>Your teacher hasn't added students yet.<br>Please check back in a little while.</p></div>`;return;}
   const r=studentName?DB.reading.find(x=>x.roll==studentName&&x.d===todayStr()):null;
   const cur=r?r.minutes:0;
   const submitted=DB.reading.filter(x=>x.d===todayStr()&&x.minutes>0)
     .map(x=>DB.students.find(s=>s.roll==x.roll)).filter(Boolean).sort((a,b)=>a.roll-b.roll);
   app.innerHTML=`
    <div class="card">
-     <label class="fld">നിന്റെ പേര് തിരഞ്ഞെടുക്കൂ</label>
+     <label class="fld">Select your name</label>
      <select class="inp" onchange="studentName=this.value;render()">
-       <option value="">— പേര് select ചെയ്യൂ —</option>
+       <option value="">— Select your name —</option>
        ${studs.map(s=>`<option value="${s.roll}" ${studentName==s.roll?'selected':''}>${s.roll}. ${s.name}</option>`).join('')}
      </select>
      ${studentName?`
@@ -119,32 +151,32 @@ function render(){
          <div style="display:flex;align-items:center;justify-content:center;gap:14px;margin:14px 0">
            <button class="minus" onclick="stepMin(-5)">−</button>
            <div><span id="minVal" style="font-family:'Baloo Chettan 2';font-size:48px;font-weight:700">${cur}</span>
-           <div style="color:var(--muted);font-size:13px;margin-top:-4px">മിനിറ്റ്</div></div>
+           <div style="color:var(--muted);font-size:13px;margin-top:-4px">minutes</div></div>
            <button class="plus" onclick="stepMin(5)">+</button>
          </div>
          <div class="seg" style="max-width:280px;margin:0 auto 16px">
            ${[15,30,45,60].map(v=>`<button onclick="setMin(${v})">${v}</button>`).join('')}
          </div>
-         <button class="btn" onclick="submitReading()">✓ ഇന്നത്തെ വായന സേവ് ചെയ്യൂ</button>
+         <button class="btn" onclick="submitReading()">✓ Save today's reading</button>
          <div class="row" style="margin-top:14px">
-           <div class="stat hot" style="flex:1"><div class="v">🔥 ${readingStreak(studentName)}</div><div class="l">ദിവസം streak</div></div>
-           <div class="stat" style="flex:1"><div class="v">${DB.reading.filter(x=>x.roll==studentName).reduce((a,b)=>a+(+b.minutes||0),0)}</div><div class="l">മൊത്തം മിനിറ്റ്</div></div>
+           <div class="stat hot" style="flex:1"><div class="v">🔥 ${readingStreak(studentName)}</div><div class="l">day streak</div></div>
+           <div class="stat" style="flex:1"><div class="v">${DB.reading.filter(x=>x.roll==studentName).reduce((a,b)=>a+(+b.minutes||0),0)}</div><div class="l">total minutes</div></div>
          </div>
        </div>`:''}
    </div>
    <div class="card">
-     <div class="section-t">ഇന്ന് സേവ് ചെയ്തവർ (${submitted.length}/${studs.length})</div>
+     <div class="section-t">Submitted today (${submitted.length}/${studs.length})</div>
      ${submitted.length?`<div class="row" style="gap:7px">${submitted.map(s=>`<span class="pill">✓ ${s.name.split(' ')[0]}</span>`).join('')}</div>`
-       :`<p style="color:var(--muted);font-size:14px;margin:0">ഇതുവരെ ആരും ഇട്ടിട്ടില്ല — നീ ആദ്യം! 🚀</p>`}
+       :`<p style="color:var(--muted);font-size:14px;margin:0">No one yet — be the first! 🚀</p>`}
    </div>`;
   window._tmpMin=cur;
 }
 function stepMin(d){window._tmpMin=Math.max(0,Math.min(600,(window._tmpMin||0)+d));document.getElementById('minVal').textContent=window._tmpMin;}
 function setMin(v){window._tmpMin=v;document.getElementById('minVal').textContent=v;}
 async function submitReading(){
-  if(!studentName){toast('പേര് select ചെയ്യൂ');return;}
+  if(!studentName){toast('Select your name');return;}
   await up(+studentName,todayStr(),window._tmpMin||0);
-  toast(`✓ ${window._tmpMin||0} മിനിറ്റ് സേവ് ആയി!`);render();
+  toast(`✓ ${window._tmpMin||0} minutes saved!`);render();
 }
 (async function(){await initDB();render();})();
 </script>

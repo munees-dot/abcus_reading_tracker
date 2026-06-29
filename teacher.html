@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ml">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -170,9 +170,9 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
 
 <script>
 /* ============================================================
-   CONFIG  —  ഇവിടെ മാത്രം മാറ്റുക
-   1) Supabase project ഉണ്ടാക്കി URL + anon key ഇടുക
-   2) Teacher PIN മാറ്റുക
+   CONFIG  —  edit here only
+   1) Create a Supabase project, paste URL + anon key
+   2) Change the Teacher PIN
    ============================================================ */
 const SUPABASE_URL  = "https://fomgindrntvtyycdwmhh.supabase.co";   // e.g. https://xxxx.supabase.co
 const SUPABASE_ANON = "sb_publishable_NhpX4lRHgeEaSQNhwVie5A_tmhKPkkc";
@@ -184,7 +184,40 @@ let sb=null, ONLINE=false;
 const LS="stTracker_v1";
 let DB={students:[],reading:[],attendance:[],exams:[],exam_marks:[],assignments:[],assign_marks:[]};
 
-function loadLocal(){try{const d=JSON.parse(localStorage.getItem(LS));if(d)DB={...DB,...d};}catch(e){}}
+const PRESET_STUDENTS=[
+  {roll:1,name:"ABDU SAMAD PP",active:true},
+  {roll:2,name:"MUHAMMED NABIH KP",active:true},
+  {roll:3,name:"MUHAMMED ANSIF",active:true},
+  {roll:4,name:"FATHIMA RAFNA K",active:true},
+  {roll:5,name:"AYSHA NASEEBA",active:true},
+  {roll:6,name:"ASWIN",active:true},
+  {roll:7,name:"AHAMMED SHAMIL K",active:true},
+  {roll:8,name:"ABHAY KRISHNA KK",active:true},
+  {roll:9,name:"AFEEF C",active:true},
+  {roll:10,name:"RISHA FATHIMA",active:true},
+  {roll:11,name:"MUHAMMED HASIM KV",active:true},
+  {roll:12,name:"MIRSHA RASLAN",active:true},
+  {roll:13,name:"MUHAMMED MUZAMMIL KT",active:true},
+  {roll:14,name:"ADHITYAN T",active:true},
+  {roll:15,name:"RIYA P",active:true},
+  {roll:16,name:"ARJUN",active:true},
+  {roll:17,name:"MUHAMMED DANISH",active:true},
+  {roll:18,name:"SANA NAZRIN MK",active:true},
+  {roll:19,name:"ABHINAV KRISHNA K",active:true},
+  {roll:20,name:"ZAYAN K",active:true},
+  {roll:21,name:"FAHIS C",active:true},
+  {roll:22,name:"SABIN KRISHNA",active:true},
+  {roll:23,name:"ABHAY KRISHNA P",active:true},
+  {roll:24,name:"MUHAMMED FAHEEM K",active:true},
+  {roll:25,name:"FATHIMA AMNA K",active:true},
+  {roll:26,name:"MUHAMMED MISHAL",active:true},
+  {roll:27,name:"MUHAMMED RISHAL UP",active:true},
+];
+function loadLocal(){
+  try{const d=JSON.parse(localStorage.getItem(LS));if(d)DB={...DB,...d};}catch(e){}
+  // seed preset students if DB is empty
+  if(!DB.students.length){DB.students=PRESET_STUDENTS.map(s=>({...s}));}
+}
 function saveLocal(){localStorage.setItem(LS,JSON.stringify(DB));}
 
 async function initDB(){
@@ -273,17 +306,17 @@ function renderHome(){
    <div class="card" style="text-align:center;padding:26px 18px">
      <div style="font-size:46px">📚</div>
      <h2 style="margin:8px 0 4px">Student Tracker</h2>
-     <p style="color:var(--muted);margin:0 0 20px">Reading, Meet attendance, exam & assignment marks — ഒരിടത്ത്.</p>
-     <button class="btn" onclick="enterStudent()">📖 ഞാൻ Student — Reading ഇടാൻ</button>
+     <p style="color:var(--muted);margin:0 0 20px">Reading, Meet attendance, exam & assignment marks — all in one place.</p>
+     <button class="btn" onclick="enterStudent()">📖 I'm a student — log reading</button>
      <button class="btn ghost" style="margin-top:10px" onclick="askPin()">🔑 Teacher Login</button>
    </div>
    <div class="card">
-     <div class="section-t" style="margin-top:0">WhatsApp group-il share cheyyan</div>
+     <div class="section-t" style="margin-top:0">Share in WhatsApp group</div>
      <p style="font-size:14px;color:var(--muted);margin:0 0 10px">
-       ഈ പേജ് host ചെയ്ത ശേഷം, student-link group-il <b>pin</b> ചെയ്യുക. ലിങ്കിന്റെ അവസാനം
-       <code style="background:var(--soft);padding:1px 5px;border-radius:5px">?v=student</code> ചേർത്താൽ നേരിട്ട് reading entry തുറക്കും.
+       After hosting this page, <b>pin</b> the student link. At the end of the link, adding
+       <code style="background:var(--soft);padding:1px 5px;border-radius:5px">?v=student</code> opens the reading entry directly.
      </p>
-     <button class="btn ghost sm" onclick="copyStudentLink()">📋 Student-link copy</button>
+     <button class="btn ghost sm" onclick="copyStudentLink()">📋 Copy student link</button>
    </div>`;
 }
 function copyStudentLink(){
@@ -306,7 +339,7 @@ function renderStudent(){
   const studs=activeStudents();
   const app=document.getElementById('app');
   if(!studs.length){app.innerHTML=`<div class="card empty"><div class="ic">🕊️</div>
-    <p>Teacher ഇതുവരെ students-നെ ചേർത്തിട്ടില്ല.<br>കുറച്ച് കഴിഞ്ഞ് വീണ്ടും നോക്കൂ.</p></div>`;return;}
+    <p>Your teacher hasn't added students yet.<br>Please check back in a little while.</p></div>`;return;}
   const r=studentName?DB.reading.find(x=>x.roll==studentName&&x.d===todayStr()):null;
   const cur=r?r.minutes:0;
   const submittedToday=DB.reading.filter(x=>x.d===todayStr()&&x.minutes>0)
@@ -314,35 +347,35 @@ function renderStudent(){
 
   app.innerHTML=`
    <div class="card">
-     <label class="fld">നിന്റെ പേര് തിരഞ്ഞെടുക്കൂ</label>
+     <label class="fld">Select your name</label>
      <select class="inp" id="stuSel" onchange="studentName=this.value;renderStudent()">
-       <option value="">— പേര് select ചെയ്യൂ —</option>
+       <option value="">— Select your name —</option>
        ${studs.map(s=>`<option value="${s.roll}" ${studentName==s.roll?'selected':''}>${s.roll}. ${s.name}</option>`).join('')}
      </select>
      ${studentName?`
        <div style="margin-top:16px;text-align:center">
-         <div style="color:var(--muted);font-size:13px">ഇന്നത്തെ വായന — ${new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})}</div>
+         <div style="color:var(--muted);font-size:13px">Today's reading — ${new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})}</div>
          <div style="display:flex;align-items:center;justify-content:center;gap:14px;margin:14px 0">
            <button class="minus" onclick="stepMin(-5)">−</button>
            <div><span id="minVal" style="font-family:'Baloo Chettan 2';font-size:48px;font-weight:700">${cur}</span>
-           <div style="color:var(--muted);font-size:13px;margin-top:-4px">മിനിറ്റ്</div></div>
+           <div style="color:var(--muted);font-size:13px;margin-top:-4px">minutes</div></div>
            <button class="plus" onclick="stepMin(5)">+</button>
          </div>
          <div class="seg" style="max-width:280px;margin:0 auto 16px">
            ${[15,30,45,60].map(v=>`<button onclick="setMin(${v})">${v}</button>`).join('')}
          </div>
-         <button class="btn amber" onclick="submitReading()">✓ ഇന്നത്തെ വായന സേവ് ചെയ്യൂ</button>
+         <button class="btn amber" onclick="submitReading()">✓ Save today's reading</button>
          <div style="margin-top:14px;display:flex;gap:10px">
-           <div class="stat hot" style="flex:1"><div class="v">🔥 ${readingStreak(studentName)}</div><div class="l">ദിവസം streak</div></div>
-           <div class="stat" style="flex:1"><div class="v">${DB.reading.filter(x=>x.roll==studentName).reduce((a,b)=>a+(+b.minutes||0),0)}</div><div class="l">മൊത്തം മിനിറ്റ്</div></div>
+           <div class="stat hot" style="flex:1"><div class="v">🔥 ${readingStreak(studentName)}</div><div class="l">day streak</div></div>
+           <div class="stat" style="flex:1"><div class="v">${DB.reading.filter(x=>x.roll==studentName).reduce((a,b)=>a+(+b.minutes||0),0)}</div><div class="l">total minutes</div></div>
          </div>
        </div>`:''}
    </div>
    <div class="card">
-     <div class="section-t" style="margin-top:0">ഇന്ന് സേവ് ചെയ്തവർ (${submittedToday.length}/${studs.length})</div>
+     <div class="section-t" style="margin-top:0">Submitted today (${submittedToday.length}/${studs.length})</div>
      ${submittedToday.length?`<div class="row" style="gap:7px">${submittedToday.map(s=>
         `<span class="pill green" style="flex:0">✓ ${s.name.split(' ')[0]}</span>`).join('')}</div>`
-       :`<p style="color:var(--muted);font-size:14px;margin:0">ഇതുവരെ ആരും ഇട്ടിട്ടില്ല — നീ ആദ്യം! 🚀</p>`}
+       :`<p style="color:var(--muted);font-size:14px;margin:0">No one yet — be the first! 🚀</p>`}
    </div>`;
   window._tmpMin=cur;
 }
@@ -350,10 +383,10 @@ function stepMin(d){window._tmpMin=Math.max(0,Math.min(600,(window._tmpMin||0)+d
   document.getElementById('minVal').textContent=window._tmpMin;}
 function setMin(v){window._tmpMin=v;document.getElementById('minVal').textContent=v;}
 async function submitReading(){
-  if(!studentName){toast('പേര് select ചെയ്യൂ');return;}
+  if(!studentName){toast('Select your name');return;}
   await up('reading',{roll:+studentName,d:todayStr(),minutes:window._tmpMin||0},['roll','d']);
   const nm=DB.students.find(s=>s.roll==studentName)?.name||'';
-  toast(`✓ ${window._tmpMin||0} മിനിറ്റ് സേവ് ആയി!`);
+  toast(`✓ ${window._tmpMin||0} minutes saved!`);
   renderStudent();
 }
 
@@ -374,7 +407,7 @@ function askPin(){
 }
 function checkPin(){
   if(document.getElementById('pin').value===TEACHER_PIN){enterAdmin();}
-  else toast('തെറ്റായ PIN');
+  else toast('Wrong PIN');
 }
 function enterAdmin(){
   CURRENT="admin";
@@ -407,7 +440,7 @@ function renderStudentsTab(){
          <div class="nm"><b>${x.name}</b><small>Roll ${x.roll} · 🔥${readingStreak(x.roll)} streak</small></div>
          <button class="btn ghost sm" onclick="addStudent(${x.roll})">✎</button>
          <button class="btn danger sm" onclick="rmStudent(${x.roll})">✕</button>
-       </div>`).join(''):'<div class="empty"><div class="ic">👥</div><p>Students ചേർക്കൂ — "+ Add"</p></div>'}
+       </div>`).join(''):'<div class="empty"><div class="ic">👥</div><p>Add students — "+ Add"</p></div>'}
      </div>
    </div>`;
 }
@@ -418,13 +451,13 @@ function addStudent(roll){
     <label class="fld">Roll no.</label>
     <input class="inp" id="m_roll" type="number" value="${nextRoll}" ${ex?'readonly':''}>
     <label class="fld" style="margin-top:12px">Name</label>
-    <input class="inp" id="m_name" value="${ex?ex.name:''}" placeholder="Student പേര്">
+    <input class="inp" id="m_name" value="${ex?ex.name:''}" placeholder="Student name">
     <button class="btn" style="margin-top:16px" onclick="saveStudent(${ex?ex.roll:'null'})">Save</button>`);
   setTimeout(()=>document.getElementById('m_name').focus(),100);
 }
 async function saveStudent(oldRoll){
   const roll=+document.getElementById('m_roll').value, name=document.getElementById('m_name').value.trim();
-  if(!name){toast('Name വേണം');return;}
+  if(!name){toast('Name required');return;}
   if(oldRoll==null && DB.students.some(s=>s.roll==roll)){toast('Roll already exists');return;}
   await up('students',{roll,name,active:true},['roll']);
   closeModal();renderStudentsTab();toast('Saved ✓');
@@ -444,11 +477,11 @@ function renderReadingTab(){
   document.getElementById('app').innerHTML=`
    <div class="card">
      <h3>Reading log</h3>
-     <label class="fld" style="margin-top:12px">തീയതി</label>
+     <label class="fld" style="margin-top:12px">Date</label>
      <input class="inp" type="date" value="${readDate}" onchange="readDate=this.value;renderReadingTab()">
      <div class="stat-grid" style="margin-top:12px">
-       <div class="stat"><div class="v">${done}/${s.length}</div><div class="l">ഇട്ടവർ</div></div>
-       <div class="stat"><div class="v">${rows.reduce((a,b)=>a+(b.min||0),0)}</div><div class="l">മൊത്തം മിനിറ്റ്</div></div>
+       <div class="stat"><div class="v">${done}/${s.length}</div><div class="l">Submitted</div></div>
+       <div class="stat"><div class="v">${rows.reduce((a,b)=>a+(b.min||0),0)}</div><div class="l">total minutes</div></div>
      </div>
    </div>
    <div class="card">
@@ -468,7 +501,7 @@ function renderReadingTab(){
        ${[...s].map(st=>({st,sk:readingStreak(st.roll),tot:DB.reading.filter(x=>x.roll==st.roll).reduce((a,b)=>a+(+b.minutes||0),0)}))
          .sort((a,b)=>b.sk-a.sk||b.tot-a.tot).slice(0,10).map((o,i)=>`<div class="item">
          <div class="av" style="background:${i<3?'#fff5e6':'var(--soft)'}">${['🥇','🥈','🥉'][i]||i+1}</div>
-         <div class="nm"><b>${o.st.name}</b><small>${o.tot} മിനിറ്റ് മൊത്തം</small></div>
+         <div class="nm"><b>${o.st.name}</b><small>${o.tot} min total</small></div>
          <span class="pill amber">🔥 ${o.sk}</span>
        </div>`).join('')}
      </div>
@@ -488,10 +521,10 @@ function renderMeetTab(){
   document.getElementById('app').innerHTML=`
    <div class="card">
      <h3>🎥 Google Meet attendance</h3>
-     <label class="fld" style="margin-top:12px">Session തീയതി</label>
+     <label class="fld" style="margin-top:12px">Session date</label>
      <input class="inp" type="date" value="${meetDate}" onchange="meetDate=this.value;renderMeetTab()">
      <div class="row" style="margin-top:10px">
-       <button class="btn ghost sm" onclick="bulkMark('present')">എല്ലാവരും Present</button>
+       <button class="btn ghost sm" onclick="bulkMark('present')">All present</button>
        <button class="btn ghost sm" onclick="bulkMark(null)">Clear</button>
      </div>
      <div class="row" style="margin-top:10px;gap:8px">
@@ -538,7 +571,7 @@ function renderExamsTab(){
          <div class="av">📝</div>
          <div class="nm"><b>${e.name}</b><small>${e.subject||'—'} · /${e.max} · ${e.d?fmtDate(e.d):''}</small></div>
          <span class="pill ${n?'green':'gray'}">${n} marks</span>
-       </div>`;}).join(''):'<div class="empty"><div class="ic">📝</div><p>Exam ഉണ്ടാക്കൂ</p></div>'}
+       </div>`;}).join(''):'<div class="empty"><div class="ic">📝</div><p>Create an exam</p></div>'}
      </div>
    </div>`;
 }
@@ -554,7 +587,7 @@ function newExam(){
 }
 async function saveExam(){
   const name=document.getElementById('e_name').value.trim();
-  if(!name){toast('Name വേണം');return;}
+  if(!name){toast('Name required');return;}
   const id=Date.now();
   await up('exams',{id,name,subject:document.getElementById('e_sub').value.trim(),
     max:+document.getElementById('e_max').value||40,d:document.getElementById('e_date').value},['id']);
@@ -606,7 +639,7 @@ function renderAssignTab(){
          <div class="av">📋</div>
          <div class="nm"><b>${t.title}</b><small>/${t.max} · due ${t.due?fmtDate(t.due):'—'}</small></div>
          <span class="pill ${sub?'green':'gray'}">${sub} done</span>
-       </div>`;}).join(''):'<div class="empty"><div class="ic">📋</div><p>Assignment ഉണ്ടാക്കൂ</p></div>'}
+       </div>`;}).join(''):'<div class="empty"><div class="ic">📋</div><p>Create an assignment</p></div>'}
      </div>
    </div>`;
 }
@@ -620,7 +653,7 @@ function newAsg(){
     <button class="btn" style="margin-top:16px" onclick="saveAsg()">Create</button>`);
 }
 async function saveAsg(){
-  const title=document.getElementById('a_title').value.trim();if(!title){toast('Title വേണം');return;}
+  const title=document.getElementById('a_title').value.trim();if(!title){toast('Title required');return;}
   const id=Date.now();
   await up('assignments',{id,title,max:+document.getElementById('a_max').value||10,
     due:document.getElementById('a_due').value},['id']);
@@ -704,7 +737,7 @@ function renderPerfTab(){
        <h3>📊 Class performance</h3>
        <button class="btn ghost sm" style="width:auto" onclick="window.print()">🖨️ Print</button>
      </div>
-     <p style="color:var(--muted);font-size:13px;margin:8px 0 0">Overall = Attendance, Exam, Assignment ശരാശരി. Student പേരിൽ ടാപ്പ് ചെയ്താൽ report card.</p>
+     <p style="color:var(--muted);font-size:13px;margin:8px 0 0">Overall = average of Attendance, Exam, Assignment. Tap a student's name for their report card.</p>
    </div>
    <div class="card">
      <div class="scroll"><table class="tbl">
@@ -736,7 +769,7 @@ function showReport(roll){
     </div>
     <div class="stat-grid" style="margin-top:12px">
       <div class="stat hot"><div class="v">🔥 ${p.streak}</div><div class="l">Reading streak</div></div>
-      <div class="stat"><div class="v">${p.readMin}</div><div class="l">Total min (${p.readDays} ദിവസം)</div></div>
+      <div class="stat"><div class="v">${p.readMin}</div><div class="l">Total min (${p.readDays} days)</div></div>
       <div class="stat"><div class="v">${p.attPct!=null?p.attPct+'%':'—'}</div><div class="l">Meet attendance (${p.present}/${p.sessions})</div></div>
       <div class="stat"><div class="v">${p.examPct!=null?p.examPct+'%':'—'}</div><div class="l">Exam average</div></div>
       <div class="stat"><div class="v">${p.asgPct!=null?p.asgPct+'%':'—'}</div><div class="l">Assignment marks</div></div>
@@ -748,7 +781,7 @@ function showReport(roll){
         return `<tr><td>${e.name}<br><small style="color:var(--muted)">${e.subject||''}</small></td>
         <td class="c">${m&&m.marks!=null?m.marks+'/'+e.max:'—'}</td>
         <td class="c">${m&&m.marks!=null?gradeBadge(Math.round(m.marks/e.max*100)):'—'}</td></tr>`;}).join('')
-        ||'<tr><td style="color:var(--muted)">Exams ഇല്ല</td></tr>'}
+        ||'<tr><td style="color:var(--muted)">No exams</td></tr>'}
     </tbody></table></div>
     <button class="btn ghost" style="margin-top:16px" onclick="closeModal()">Close</button>`);
 }
