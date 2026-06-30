@@ -3,348 +3,1188 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Daily Reading</title>
+<title>Student Tracker — Reading • Meet • Exams</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Baloo+Chettan+2:wght@500;600;700&family=Noto+Sans+Malayalam:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{
-  --bg:#f5f4ef;--card:#fff;--ink:#1b2030;--muted:#697086;
-  --primary:#15786b;--primary-d:#0f5a50;--accent:#f59e0b;
-  --line:#e7e6df;--soft:#eef3f1;--green:#16a34a;--blue:#2563eb;
-  --shadow:0 1px 3px rgba(20,30,40,.07),0 8px 24px rgba(20,30,40,.05);--r:16px;
+  --bg:#f5f4ef; --card:#ffffff; --ink:#1b2030; --muted:#697086;
+  --primary:#15786b; --primary-d:#0f5a50; --accent:#f59e0b;
+  --line:#e7e6df; --soft:#eef3f1;
+  --green:#16a34a; --red:#dc2626; --amber:#d97706; --blue:#2563eb;
+  --shadow:0 1px 3px rgba(20,30,40,.07),0 8px 24px rgba(20,30,40,.05);
+  --r:16px;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{margin:0;background:var(--bg);color:var(--ink);
-  font-family:"Noto Sans Malayalam","Baloo Chettan 2",system-ui,sans-serif;font-size:16px;line-height:1.5;padding-bottom:30px}
-h2,h3{font-family:"Baloo Chettan 2","Noto Sans Malayalam",sans-serif;margin:0;font-weight:700}
+  font-family:"Noto Sans Malayalam","Baloo Chettan 2",system-ui,sans-serif;
+  font-size:16px;line-height:1.5;padding-bottom:84px}
+h1,h2,h3{font-family:"Baloo Chettan 2","Noto Sans Malayalam",sans-serif;margin:0;font-weight:700;line-height:1.2}
 button{font-family:inherit;cursor:pointer}
 input,select{font-family:inherit;font-size:16px}
-.wrap{max-width:560px;margin:0 auto;padding:0 14px}
+.wrap{max-width:760px;margin:0 auto;padding:0 14px}
+.hidden{display:none!important}
+
+/* Top bar */
 .topbar{background:linear-gradient(135deg,var(--primary),var(--primary-d));color:#fff;padding:16px 14px;
   position:sticky;top:0;z-index:50;box-shadow:0 2px 12px rgba(15,90,80,.25)}
-.topbar .in{max-width:560px;margin:0 auto;display:flex;align-items:center;justify-content:space-between}
+.topbar .wrap{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .brand{display:flex;align-items:center;gap:10px}
-.brand .logo{width:38px;height:38px;border-radius:11px;background:rgba(255,255,255,.18);display:grid;place-items:center;font-size:20px}
+.brand .logo{width:38px;height:38px;border-radius:11px;background:rgba(255,255,255,.18);
+  display:grid;place-items:center;font-size:20px}
 .brand b{font-family:"Baloo Chettan 2";font-size:18px;display:block;line-height:1}
 .brand span{font-size:12px;opacity:.85}
-.sync{font-size:11px;display:flex;align-items:center;gap:5px;color:#cdeee6}
-.dot{width:7px;height:7px;border-radius:50%;background:#7bdcc9}.dot.off{background:#f7b955}
-.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;box-shadow:var(--shadow);margin-top:14px}
+.tb-btn{background:rgba(255,255,255,.16);color:#fff;border:none;border-radius:10px;
+  padding:8px 12px;font-size:13px;font-weight:600}
+
+/* Cards & layout */
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);
+  padding:16px;box-shadow:var(--shadow);margin-top:14px}
+.section-t{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;
+  letter-spacing:.04em;margin:18px 2px 6px}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.row>*{flex:1;min-width:0}
 label.fld{display:block;font-size:13px;font-weight:600;color:var(--muted);margin:0 0 5px 2px}
-.inp{width:100%;padding:13px 14px;border:1.5px solid var(--line);border-radius:12px;background:#fff;color:var(--ink);outline:none}
+.inp{width:100%;padding:13px 14px;border:1.5px solid var(--line);border-radius:12px;background:#fff;
+  color:var(--ink);outline:none;transition:border-color .15s}
 .inp:focus{border-color:var(--primary)}
 select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='none' stroke='%23697086' stroke-width='2'%3E%3Cpath d='M3 5l4 4 4-4'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:38px}
-.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:15px 16px;border:none;border-radius:13px;
-  background:var(--primary);color:#fff;font-weight:700;font-size:16px;box-shadow:0 4px 14px rgba(15,90,80,.22);transition:transform .08s}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;
+  padding:15px 16px;border:none;border-radius:13px;background:var(--primary);color:#fff;
+  font-weight:700;font-size:16px;box-shadow:0 4px 14px rgba(15,90,80,.22);transition:transform .08s}
 .btn:active{transform:scale(.98)}
 .btn.amber{background:var(--accent);box-shadow:0 4px 14px rgba(245,158,11,.25)}
-.btn.blue{background:var(--blue);box-shadow:0 4px 14px rgba(37,99,235,.25)}
-.btn:disabled{opacity:.45;pointer-events:none}
-.hm-row{display:flex;align-items:center;justify-content:center;gap:18px}
-.hm-box{display:flex;flex-direction:column;align-items:center;gap:4px}
-.hm-sel{width:84px;text-align:center;font-size:20px;font-weight:700;padding:12px 8px;font-family:"Baloo Chettan 2"}
-.hm-lbl{font-size:12px;color:var(--muted);font-weight:600}
-.seg{display:flex;background:var(--soft);border-radius:12px;padding:4px;gap:4px}
-.seg button{flex:1;border:none;background:none;padding:9px;border-radius:9px;font-weight:600;font-size:13px;color:var(--muted)}
-.seg button.on{background:#fff;color:var(--primary-d);box-shadow:0 1px 4px rgba(0,0,0,.08)}
-.section-t{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin:0 0 8px}
-.stat{background:var(--soft);border-radius:13px;padding:13px;text-align:center}
+.btn.ghost{background:var(--soft);color:var(--primary-d);box-shadow:none;border:1.5px solid var(--line)}
+.btn.sm{width:auto;padding:9px 14px;font-size:14px;border-radius:10px}
+.btn.danger{background:#fde8e8;color:var(--red);box-shadow:none}
+
+/* Bottom nav (admin) */
+.nav{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);
+  display:flex;z-index:60;padding:6px 4px env(safe-area-inset-bottom);box-shadow:0 -2px 16px rgba(0,0,0,.04)}
+.nav button{flex:1;background:none;border:none;color:var(--muted);font-size:9.5px;font-weight:600;
+  display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 1px;border-radius:10px}
+.nav button .ic{font-size:18px;line-height:1}
+.nav button.on{color:var(--primary)}
+.nav button.on .ic{transform:translateY(-1px)}
+
+/* Pills / badges */
+.pill{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;
+  font-size:12.5px;font-weight:700}
+.pill.green{background:#e7f6ec;color:var(--green)}
+.pill.red{background:#fdecec;color:var(--red)}
+.pill.amber{background:#fef3e2;color:var(--amber)}
+.pill.blue{background:#e8f0fe;color:var(--blue)}
+.pill.gray{background:#eef0f3;color:var(--muted)}
+.gb{display:inline-grid;place-items:center;min-width:34px;height:26px;padding:0 7px;border-radius:8px;
+  font-weight:700;font-size:13px;color:#fff}
+.g-Ap{background:#16a34a}.g-A{background:#22a06b}.g-Bp{background:#3b82f6}.g-B{background:#6366f1}
+.g-Cp{background:#f59e0b}.g-C{background:#f97316}.g-D{background:#ef4444}.g-E{background:#991b1b}
+
+/* Lists & tables */
+.lst{display:flex;flex-direction:column;gap:8px}
+.item{display:flex;align-items:center;gap:12px;padding:12px 13px;background:#fff;border:1px solid var(--line);
+  border-radius:13px}
+.item .av{width:40px;height:40px;border-radius:11px;background:var(--soft);color:var(--primary-d);
+  display:grid;place-items:center;font-weight:700;font-size:15px;flex-shrink:0}
+.item .nm{flex:1;min-width:0}
+.item .nm b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item .nm small{color:var(--muted);font-size:12px}
+.tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl th,.tbl td{padding:9px 8px;text-align:left;border-bottom:1px solid var(--line)}
+.tbl th{font-size:12px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+.tbl td.c,.tbl th.c{text-align:center}
+.tbl tr:last-child td{border-bottom:none}
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+
+.stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.stat{background:var(--soft);border-radius:13px;padding:13px}
 .stat .v{font-family:"Baloo Chettan 2";font-size:26px;font-weight:700;line-height:1}
 .stat .l{font-size:12px;color:var(--muted);margin-top:3px}
 .stat.hot{background:#fff5e6}.stat.hot .v{color:var(--accent)}
-.stat.morning{background:#fffbeb}.stat.morning .v{color:#d97706}
-.stat.evening{background:#eff6ff}.stat.evening .v{color:var(--blue)}
-.row{display:flex;gap:10px;flex-wrap:wrap}
-.pill{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;font-size:12.5px;font-weight:700;background:#e7f6ec;color:var(--green)}
-.pill.blue{background:#eff6ff;color:var(--blue)}
-.empty{text-align:center;color:var(--muted);padding:30px 16px}.empty .ic{font-size:38px;opacity:.5}
-.toast{position:fixed;left:50%;bottom:30px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;
-  padding:12px 20px;border-radius:12px;font-weight:600;font-size:14px;opacity:0;pointer-events:none;transition:.25s;z-index:200;max-width:90%;text-align:center}
+
+.seg{display:flex;background:var(--soft);border-radius:12px;padding:4px;gap:4px}
+.seg button{flex:1;border:none;background:none;padding:9px;border-radius:9px;font-weight:600;
+  font-size:13px;color:var(--muted)}
+.seg button.on{background:#fff;color:var(--primary-d);box-shadow:0 1px 4px rgba(0,0,0,.08)}
+
+.empty{text-align:center;color:var(--muted);padding:30px 16px}
+.empty .ic{font-size:38px;opacity:.5}
+.toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%) translateY(20px);
+  background:var(--ink);color:#fff;padding:12px 20px;border-radius:12px;font-weight:600;font-size:14px;
+  opacity:0;pointer-events:none;transition:.25s;z-index:200;max-width:90%;text-align:center}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-.session-box{border:2px solid var(--line);border-radius:14px;padding:14px;margin-top:12px}
-.session-box.morning{border-color:#fcd34d;background:#fffdf0}
-.session-box.evening{border-color:#93c5fd;background:#f0f7ff}
-.session-title{font-weight:700;font-size:15px;margin-bottom:10px;display:flex;align-items:center;gap:6px}
-.lock-msg{background:#fdecea;color:#c0392b;border-radius:10px;padding:10px 14px;font-size:13px;font-weight:600;text-align:center;margin-top:10px}
-.grp-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;background:rgba(255,255,255,.18);color:#fff;font-size:12px;font-weight:700}
+.sync{font-size:11px;display:flex;align-items:center;gap:5px;color:#cdeee6}
+.dot{width:7px;height:7px;border-radius:50%;background:#7bdcc9}
+.dot.off{background:#f7b955}
+
+.minus,.plus{width:48px;height:48px;border-radius:12px;border:1.5px solid var(--line);background:#fff;
+  font-size:22px;font-weight:700;color:var(--primary);display:grid;place-items:center}
+.modal-bk{position:fixed;inset:0;background:rgba(20,25,35,.5);z-index:100;display:grid;place-items:end center;padding:0}
+.modal{background:#fff;width:100%;max-width:760px;border-radius:20px 20px 0 0;padding:20px 16px 28px;
+  max-height:88vh;overflow:auto;animation:up .25s}
+@keyframes up{from{transform:translateY(40px)}}
+.modal h3{margin-bottom:14px;font-size:19px}
+
+@media print{
+  .topbar,.nav,.no-print,.toast{display:none!important}
+  body{background:#fff;padding:0}
+  .card{box-shadow:none;border:1px solid #ccc;break-inside:avoid}
+}
 </style>
 </head>
 <body>
-<div class="topbar"><div class="in">
-  <div class="brand"><div class="logo">📖</div><div><b>Daily Reading Log</b><span id="dateLabel"></span></div></div>
-  <div class="sync" id="syncTag"><span class="dot off"></span>...</div>
-</div></div>
+
+<!-- ===== TOP BAR ===== -->
+<div class="topbar">
+  <div class="wrap">
+    <div class="brand">
+      <div class="logo">📚</div>
+      <div>
+        <b>Student Tracker</b>
+        <span id="sub">Reading • Meet • Exams</span>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+      <button class="tb-btn" id="roleBtn" onclick="lockApp()">🔒 Lock</button>
+      <div class="sync" id="syncTag"><span class="dot off"></span>Local</div>
+    </div>
+  </div>
+</div>
+
 <div class="wrap" id="app"></div>
+
+<!-- ===== ADMIN BOTTOM NAV ===== -->
+<div class="nav hidden" id="nav">
+  <button data-tab="students" onclick="setTab('students')"><span class="ic">👥</span>Students</button>
+  <button data-tab="reading" onclick="setTab('reading')"><span class="ic">📖</span>Reading</button>
+  <button data-tab="readrep" onclick="setTab('readrep')"><span class="ic">📈</span>RdReport</button>
+  <button data-tab="meet" onclick="setTab('meet')"><span class="ic">🎥</span>Meet</button>
+  <button data-tab="exams" onclick="setTab('exams')"><span class="ic">📝</span>Exams</button>
+  <button data-tab="assign" onclick="setTab('assign')"><span class="ic">📋</span>Tasks</button>
+  <button data-tab="perf" onclick="setTab('perf')"><span class="ic">📊</span>Report</button>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
-const SUPABASE_URL  = "https://fomgindrntvtyycdwmhh.supabase.co";
+/* ============================================================
+   CONFIG  —  edit here only
+   1) Create a Supabase project, paste URL + anon key
+   2) Change the Teacher PIN
+   ============================================================ */
+const SUPABASE_URL  = "https://fomgindrntvtyycdwmhh.supabase.co";   // e.g. https://xxxx.supabase.co
 const SUPABASE_ANON = "sb_publishable_NhpX4lRHgeEaSQNhwVie5A_tmhKPkkc";
+const TEACHER_PIN   = "5659";                            // teacher login PIN
+const MAX_STUDENTS  = 30;
+const READING_PAGE  = "reading.html";  // filename of the student reading page in the same folder as this file
 
-/* ===== GROUPS (dynamic, pulled from Supabase 'groups' table) ===== */
+/* ---------- Supabase / storage layer ---------- */
+let sb=null, ONLINE=false;
+const LS="stTracker_v3";
+let DB={students:[],reading:[],attendance:[],exams:[],exam_marks:[],assignments:[],assign_marks:[]};
+
 let GROUPS=[
   {id:'class7a', name:'Class 7A', icon:'🏫'},
+  {id:'abacus',  name:'Abacus Academy', icon:'🧮'},
+  {id:'dreams',  name:'Dreams Club', icon:'🌟'},
 ];
+let curGroup='class7a';
+const GROUP_ICONS=['🏫','🧮','🌟','📚','🎯','🎨','⚽','🎵','🔬','🧩','🌱','💡','🏆','🌈'];
+function slugify(s){return s.trim().toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'')||('g'+Date.now());}
+
 const PRESET_STUDENTS={
-  class7a:[
-    {roll:1,name:"ABDU SAMAD PP",active:true},
-    {roll:2,name:"MUHAMMED NABIH KP",active:true},
-    {roll:3,name:"MUHAMMED ANSIF",active:true},
-    {roll:4,name:"FATHIMA RAFNA K",active:true},
-    {roll:5,name:"AYSHA NASEEBA",active:true},
-    {roll:6,name:"ASWIN",active:true},
-    {roll:7,name:"AHAMMED SHAMIL K",active:true},
-    {roll:8,name:"ABHAY KRISHNA KK",active:true},
-    {roll:9,name:"RISHA FATHIMA",active:true},
-    {roll:10,name:"MUHAMMED HASIM KV",active:true},
-    {roll:11,name:"MIRSHA RASLAN",active:true},
-    {roll:12,name:"MUHAMMED MUZAMMIL KT",active:true},
-    {roll:13,name:"ADHITYAN T",active:true},
-    {roll:14,name:"RIYA P",active:true},
-    {roll:15,name:"ARJUN",active:true},
-    {roll:16,name:"MUHAMMED DANISH",active:true},
-    {roll:17,name:"SANA NAZRIN MK",active:true},
-    {roll:18,name:"ABHINAV KRISHNA K",active:true},
-    {roll:19,name:"ZAYAN K",active:true},
-    {roll:20,name:"FAHIS C",active:true},
-    {roll:21,name:"SABIN KRISHNA",active:true},
-    {roll:22,name:"ABHAY KRISHNA P",active:true},
-    {roll:23,name:"MUHAMMED FAHEEM K",active:true},
-    {roll:24,name:"FATHIMA AMNA K",active:true},
-    {roll:25,name:"MUHAMMED MISHAL",active:true},
-    {roll:26,name:"MUHAMMED RISHAL UP",active:true},
-  ],
+class7a:[
+  {roll:1,name:"ABDU SAMAD PP",active:true},
+  {roll:2,name:"MUHAMMED NABIH KP",active:true},
+  {roll:3,name:"MUHAMMED ANSIF",active:true},
+  {roll:4,name:"FATHIMA RAFNA K",active:true},
+  {roll:5,name:"AYSHA NASEEBA",active:true},
+  {roll:6,name:"ASWIN",active:true},
+  {roll:7,name:"AHAMMED SHAMIL K",active:true},
+  {roll:8,name:"ABHAY KRISHNA KK",active:true},
+  {roll:9,name:"RISHA FATHIMA",active:true},
+  {roll:10,name:"MUHAMMED HASIM KV",active:true},
+  {roll:11,name:"MIRSHA RASLAN",active:true},
+  {roll:12,name:"MUHAMMED MUZAMMIL KT",active:true},
+  {roll:13,name:"ADHITYAN T",active:true},
+  {roll:14,name:"RIYA P",active:true},
+  {roll:15,name:"ARJUN",active:true},
+  {roll:16,name:"MUHAMMED DANISH",active:true},
+  {roll:17,name:"SANA NAZRIN MK",active:true},
+  {roll:18,name:"ABHINAV KRISHNA K",active:true},
+  {roll:19,name:"ZAYAN K",active:true},
+  {roll:20,name:"FAHIS C",active:true},
+  {roll:21,name:"SABIN KRISHNA",active:true},
+  {roll:22,name:"ABHAY KRISHNA P",active:true},
+  {roll:23,name:"MUHAMMED FAHEEM K",active:true},
+  {roll:24,name:"FATHIMA AMNA K",active:true},
+  {roll:25,name:"MUHAMMED MISHAL",active:true},
+  {roll:26,name:"MUHAMMED RISHAL UP",active:true},
+],
+abacus:[],
+dreams:[],
 };
-
-let sb=null,ONLINE=false;
-const LS="stReading_v3";
-let DB={students:{},reading:[]}; // students keyed by group_id
-let curGroup=null;
-let LOCKED_GROUP=false; // true when group came from ?g= URL param — hides "switch group" option
-
 function loadLocal(){
   try{const d=JSON.parse(localStorage.getItem(LS));if(d)DB={...DB,...d};}catch(e){}
-  try{const g=JSON.parse(localStorage.getItem(LS+'_groups'));if(g&&g.length)GROUPS=g;}catch(e){}
-  GROUPS.forEach(g=>{ if(!DB.students[g.id] || !DB.students[g.id].length){
-    DB.students[g.id]=(PRESET_STUDENTS[g.id]||[]).map(s=>({...s}));
-  }});
+  GROUPS.forEach(g=>{
+    if(!DB.students.some(s=>(s.group_id||'class7a')===g.id)){
+      (PRESET_STUDENTS[g.id]||[]).forEach(s=>DB.students.push({...s,group_id:g.id}));
+    }
+  });
 }
 function saveLocal(){localStorage.setItem(LS,JSON.stringify(DB));}
-function saveGroupsLocal(){localStorage.setItem(LS+'_groups',JSON.stringify(GROUPS));}
 
 async function initDB(){
   loadLocal();
+  loadGroupsLocal();
   if(SUPABASE_URL.startsWith("http")&&SUPABASE_ANON.length>20){
     try{
       sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON);
-      const{data:grps}=await sb.from('groups').select('*').order('created_at',{ascending:true});
-      if(grps&&grps.length){GROUPS=grps.map(g=>({id:g.id,name:g.name,icon:g.icon||'📘'}));saveGroupsLocal();}
-      const{data:studs}=await sb.from('students').select('*');
-      if(studs){
-        GROUPS.forEach(g=>{
-          const rows=studs.filter(s=>(s.group_id||'class7a')===g.id);
-          if(rows.length)DB.students[g.id]=rows;
-        });
-      }
-      const{data:reads}=await sb.from('reading').select('*');
-      if(reads)DB.reading=reads;
-      saveLocal();ONLINE=true;
-    }catch(e){ONLINE=false;}
+      await pullAll();
+      ONLINE=true;
+    }catch(e){console.warn("Supabase off:",e);ONLINE=false;}
   }
-  document.getElementById('syncTag').innerHTML=ONLINE
-    ?'<span class="dot"></span>Cloud synced'
-    :'<span class="dot off"></span>Offline';
+  setSyncTag();
 }
-
-async function upReading(roll,d,session,minutes){
-  const idx=DB.reading.findIndex(r=>r.roll==roll&&r.d===d&&r.session===session&&r.group_id===curGroup);
-  if(idx>=0)DB.reading[idx].minutes=minutes;
-  else DB.reading.push({roll,d,session,minutes,group_id:curGroup});
+function setSyncTag(){
+  const t=document.getElementById('syncTag');
+  t.innerHTML = ONLINE
+    ? '<span class="dot"></span>Cloud synced'
+    : '<span class="dot off"></span>Local only';
+}
+async function pullAll(){
+  const T=["students","reading","attendance","exams","exam_marks","assignments","assign_marks"];
+  for(const t of T){
+    const {data,error}=await sb.from(t).select("*");
+    if(!error&&data) DB[t]=data;
+  }
+  try{
+    const {data,error}=await sb.from('groups').select('*').order('created_at',{ascending:true});
+    if(!error&&data&&data.length) GROUPS=data.map(g=>({id:g.id,name:g.name,icon:g.icon||'📘'}));
+  }catch(e){console.warn('groups pull failed',e);}
   saveLocal();
-  if(ONLINE){
-    try{await sb.from('reading').upsert({roll,d,session,minutes,group_id:curGroup},{onConflict:"group_id,roll,d,session"});}
-    catch(e){console.warn(e);}
-  }
+  saveGroupsLocal();
+}
+function saveGroupsLocal(){localStorage.setItem(LS+'_groups',JSON.stringify(GROUPS));}
+function loadGroupsLocal(){
+  try{const g=JSON.parse(localStorage.getItem(LS+'_groups'));if(g&&g.length)GROUPS=g;}catch(e){}
+}
+async function addGroup(name){
+  name=name.trim();if(!name)return;
+  const id=slugify(name);
+  if(GROUPS.some(g=>g.id===id)){toast('Group already exists');return;}
+  const icon=GROUP_ICONS[GROUPS.length%GROUP_ICONS.length];
+  GROUPS.push({id,name,icon});
+  saveGroupsLocal();
+  if(ONLINE){try{await sb.from('groups').upsert({id,name,icon},{onConflict:'id'});}catch(e){console.warn(e);}}
+  curGroup=id;
+  renderAdmin();
+  toast(`✓ "${name}" group created`);
+}
+async function renameGroup(id,newName){
+  newName=newName.trim();if(!newName)return;
+  const g=GROUPS.find(x=>x.id===id);if(!g)return;
+  g.name=newName;saveGroupsLocal();
+  if(ONLINE){try{await sb.from('groups').update({name:newName}).eq('id',id);}catch(e){}}
+  renderAdmin();toast('Renamed ✓');
+}
+async function deleteGroup(id){
+  if(GROUPS.length<=1){toast('At least one group required');return;}
+  const g=GROUPS.find(x=>x.id===id);
+  if(!confirm(`Delete "${g.name}"? Its students/reading/marks data will remain in the database but hidden from this list.`))return;
+  GROUPS=GROUPS.filter(x=>x.id!==id);saveGroupsLocal();
+  if(ONLINE){try{await sb.from('groups').delete().eq('id',id);}catch(e){}}
+  if(curGroup===id)curGroup=GROUPS[0]?.id||'class7a';
+  renderAdmin();toast('Group removed');
+}
+/* upsert helper: writes cloud (if online) + local mirror. Auto-injects group_id. */
+async function up(table,row,conflict){
+  row={group_id:curGroup,...row};
+  const fullConflict=conflict.includes('group_id')?conflict:['group_id',...conflict];
+  const arr=DB[table];
+  const keyMatch=(r)=>fullConflict.every(k=>String(r[k])===String(row[k]));
+  const i=arr.findIndex(keyMatch);
+  if(i>=0) arr[i]={...arr[i],...row}; else arr.push({...row});
+  saveLocal();
+  if(ONLINE){try{await sb.from(table).upsert(row,{onConflict:fullConflict.join(",")});}catch(e){console.warn(e);}}
+}
+async function del(table,match){
+  match={group_id:curGroup,...match};
+  DB[table]=DB[table].filter(r=>!Object.keys(match).every(k=>String(r[k])===String(match[k])));
+  saveLocal();
+  if(ONLINE){try{let q=sb.from(table).delete();for(const k in match)q=q.eq(k,match[k]);await q;}catch(e){}}
 }
 
+/* ---------- utils ---------- */
 const todayStr=()=>new Date().toISOString().slice(0,10);
-const isLocked=()=>{const n=new Date();return n.getHours()===23&&n.getMinutes()===59;};
-const activeStudents=()=>(DB.students[curGroup]||[]).filter(s=>s.active!==false).sort((a,b)=>a.roll-b.roll);
+const fmtDate=(s)=>{const d=new Date(s+'T00:00');return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short'});};
+const initials=(n)=>n.trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase();
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');
+  clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2200);}
+function grade(pct){
+  if(pct>=90)return['A+','Ap'];if(pct>=80)return['A','A'];if(pct>=70)return['B+','Bp'];
+  if(pct>=60)return['B','B'];if(pct>=50)return['C+','Cp'];if(pct>=40)return['C','C'];
+  if(pct>=30)return['D','D'];return['E','E'];}
+function gradeBadge(pct){if(pct==null||isNaN(pct))return '<span class="pill gray">—</span>';
+  const[g,c]=grade(pct);return `<span class="gb g-${c}">${g}</span>`;}
+const activeStudents=()=>DB.students.filter(s=>(s.group_id||'class7a')===curGroup&&s.active!==false).sort((a,b)=>a.roll-b.roll);
+const gExams=()=>DB.exams.filter(e=>(e.group_id||'class7a')===curGroup);
+const gAssignments=()=>DB.assignments.filter(a=>(a.group_id||'class7a')===curGroup);
+const gAttendance=()=>gAttendance().filter(a=>(a.group_id||'class7a')===curGroup);
+const gReading=()=>DB.reading.filter(r=>(r.group_id||'class7a')===curGroup);
 
-function getEntry(roll,d,session){
-  return DB.reading.find(r=>r.roll==roll&&r.d===d&&r.session===session&&r.group_id===curGroup);
-}
+/* streak: consecutive days up to today with reading>0 */
 function readingStreak(roll){
-  const days=new Set(DB.reading.filter(r=>r.roll==roll&&r.group_id===curGroup&&r.minutes>0).map(r=>r.d));
-  let s=0;const d=new Date();
+  const set=new Set(gReading().filter(r=>r.roll==roll&&r.minutes>0).map(r=>r.d));
+  let s=0;let d=new Date();
   for(;;){const ds=d.toISOString().slice(0,10);
-    if(days.has(ds)){s++;d.setDate(d.getDate()-1);}
-    else if(ds===todayStr()){d.setDate(d.getDate()-1);}
+    if(set.has(ds)){s++;d.setDate(d.getDate()-1);}
+    else if(ds===todayStr()){d.setDate(d.getDate()-1);} // today not yet logged = no break
     else break;}
   return s;
 }
-function totalMin(roll){return DB.reading.filter(r=>r.roll==roll&&r.group_id===curGroup).reduce((a,b)=>a+(+b.minutes||0),0);}
 
-function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');
-  clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2400);}
+/* ============================================================
+   ROUTER
+   ============================================================ */
+let CURRENT="home", TAB="students", studentName=null;
+function goHome(){CURRENT="home";document.getElementById('nav').classList.add('hidden');
+  document.getElementById('roleBtn').classList.add('hidden');renderHome();}
+function lockApp(){document.getElementById('nav').classList.add('hidden');
+  document.getElementById('roleBtn').classList.add('hidden');askPin();}
+function setTab(t){TAB=t;[...document.querySelectorAll('.nav button')].forEach(b=>
+  b.classList.toggle('on',b.dataset.tab===t));renderAdmin();}
 
-let studentName=null;
-let tmpMin={morning:0,evening:0};
-
-function groupLabel(id){return (GROUPS.find(g=>g.id===id)||{}).name||id;}
-function groupIcon(id){return (GROUPS.find(g=>g.id===id)||{}).icon||'📘';}
-
-function renderGroupPicker(){
-  const app=document.getElementById('app');
-  app.innerHTML=`
-   <div class="card" style="text-align:center">
-     <div style="font-size:40px">📚</div>
-     <h3 style="margin:6px 0 4px">Choose your group</h3>
-     <p style="color:var(--muted);font-size:13px;margin:0 0 14px">Select which group you belong to</p>
-     <div style="display:flex;flex-direction:column;gap:9px">
-     ${GROUPS.map(g=>`<button class="btn" style="background:#fff;color:var(--ink);border:1.5px solid var(--line);box-shadow:none;justify-content:flex-start;padding:13px 16px"
-        onclick="chooseGroup('${g.id}')">${g.icon} ${g.name}</button>`).join('')}
-     </div>
+/* ============================================================
+   HOME (role select)
+   ============================================================ */
+function renderHome(){
+  document.getElementById('sub').textContent="Reading • Meet • Exams";
+  document.getElementById('app').innerHTML=`
+   <div class="card" style="text-align:center;padding:26px 18px">
+     <div style="font-size:46px">📚</div>
+     <h2 style="margin:8px 0 4px">Student Tracker</h2>
+     <p style="color:var(--muted);margin:0 0 20px">Reading, Meet attendance, exam & assignment marks — all in one place.</p>
+     <button class="btn" onclick="enterStudent()">📖 I'm a student — log reading</button>
+     <button class="btn ghost" style="margin-top:10px" onclick="askPin()">🔑 Teacher Login</button>
+   </div>
+   <div class="card">
+     <div class="section-t" style="margin-top:0">Share in WhatsApp group</div>
+     <p style="font-size:14px;color:var(--muted);margin:0 0 10px">
+       After hosting this page, <b>pin</b> the student link. At the end of the link, adding
+       <code style="background:var(--soft);padding:1px 5px;border-radius:5px">?v=student</code> opens the reading entry directly.
+     </p>
+     <button class="btn ghost sm" onclick="copyStudentLink()">📋 Copy student link</button>
    </div>`;
 }
-function chooseGroup(id){curGroup=id;studentName=null;render();}
+function copyStudentLink(){
+  const base=location.href.split('?')[0];
+  navigator.clipboard?.writeText(base+'?v=student').then(()=>toast('Student link copied ✓'))
+    .catch(()=>toast(base+'?v=student'));
+}
 
-function render(){
-  if(!curGroup){renderGroupPicker();return;}
-  const studs=activeStudents(),app=document.getElementById('app');
-  const today=todayStr();
-  document.getElementById('dateLabel').innerHTML=
-    new Date().toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})+
-    ` <span class="grp-chip" style="margin-left:6px">${groupIcon(curGroup)} ${groupLabel(curGroup)}</span>`;
-
+/* ============================================================
+   STUDENT SELF-SUBMIT
+   ============================================================ */
+function enterStudent(){
+  CURRENT="student";
+  document.getElementById('roleBtn').classList.remove('hidden');
+  document.getElementById('nav').classList.add('hidden');
+  document.getElementById('sub').textContent="Reading entry";
+  renderStudent();
+}
+function renderStudent(){
+  const studs=activeStudents();
+  const app=document.getElementById('app');
   if(!studs.length){app.innerHTML=`<div class="card empty"><div class="ic">🕊️</div>
-    <p>No students added yet in ${groupLabel(curGroup)}.<br>Check back soon.</p></div>
-    ${LOCKED_GROUP?'':'<button class="btn" style="margin-top:10px;background:#fff;color:var(--ink);border:1.5px solid var(--line);box-shadow:none" onclick="curGroup=null;render()">← Choose different group</button>'}`;return;}
-
-  const mEntry=studentName?getEntry(studentName,today,'morning'):null;
-  const eEntry=studentName?getEntry(studentName,today,'evening'):null;
-  tmpMin.morning=mEntry?mEntry.minutes:0;
-  tmpMin.evening=eEntry?eEntry.minutes:0;
-
-  const submittedToday=studs.filter(st=>{
-    const m=getEntry(st.roll,today,'morning');
-    const e=getEntry(st.roll,today,'evening');
-    return (m&&m.minutes>0)||(e&&e.minutes>0);
-  });
-
-  const locked=isLocked();
+    <p>Your teacher hasn't added students yet.<br>Please check back in a little while.</p></div>`;return;}
+  const r=studentName?DB.reading.find(x=>x.roll==studentName&&x.d===todayStr()):null;
+  const cur=r?r.minutes:0;
+  const submittedToday=DB.reading.filter(x=>x.d===todayStr()&&x.minutes>0)
+    .map(x=>DB.students.find(s=>s.roll==x.roll)).filter(Boolean).sort((a,b)=>a.roll-b.roll);
 
   app.innerHTML=`
-  <div class="card">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-      <label class="fld" style="margin:0">Select your name</label>
-      ${LOCKED_GROUP?'':'<button onclick="curGroup=null;render()" style="background:none;border:none;color:var(--primary);font-size:12px;font-weight:700">↺ Switch group</button>'}
-    </div>
-    <select class="inp" onchange="studentName=this.value;render()">
-      <option value="">— Select your name —</option>
-      ${studs.map(s=>`<option value="${s.roll}" ${studentName==s.roll?'selected':''}>${s.roll}. ${s.name}</option>`).join('')}
-    </select>
+   <div class="card">
+     <label class="fld">Select your name</label>
+     <select class="inp" id="stuSel" onchange="studentName=this.value;renderStudent()">
+       <option value="">— Select your name —</option>
+       ${studs.map(s=>`<option value="${s.roll}" ${studentName==s.roll?'selected':''}>${s.roll}. ${s.name}</option>`).join('')}
+     </select>
+     ${studentName?`
+       <div style="margin-top:16px;text-align:center">
+         <div style="color:var(--muted);font-size:13px">Today's reading — ${new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})}</div>
+         <div style="display:flex;align-items:center;justify-content:center;gap:14px;margin:14px 0">
+           <button class="minus" onclick="stepMin(-5)">−</button>
+           <div><span id="minVal" style="font-family:'Baloo Chettan 2';font-size:48px;font-weight:700">${cur}</span>
+           <div style="color:var(--muted);font-size:13px;margin-top:-4px">minutes</div></div>
+           <button class="plus" onclick="stepMin(5)">+</button>
+         </div>
+         <div class="seg" style="max-width:280px;margin:0 auto 16px">
+           ${[15,30,45,60].map(v=>`<button onclick="setMin(${v})">${v}</button>`).join('')}
+         </div>
+         <button class="btn amber" onclick="submitReading()">✓ Save today's reading</button>
+         <div style="margin-top:14px;display:flex;gap:10px">
+           <div class="stat hot" style="flex:1"><div class="v">🔥 ${readingStreak(studentName)}</div><div class="l">day streak</div></div>
+           <div class="stat" style="flex:1"><div class="v">${DB.reading.filter(x=>x.roll==studentName).reduce((a,b)=>a+(+b.minutes||0),0)}</div><div class="l">total minutes</div></div>
+         </div>
+       </div>`:''}
+   </div>
+   <div class="card">
+     <div class="section-t" style="margin-top:0">Submitted today (${submittedToday.length}/${studs.length})</div>
+     ${submittedToday.length?`<div class="row" style="gap:7px">${submittedToday.map(s=>
+        `<span class="pill green" style="flex:0">✓ ${s.name.split(' ')[0]}</span>`).join('')}</div>`
+       :`<p style="color:var(--muted);font-size:14px;margin:0">No one yet — be the first! 🚀</p>`}
+   </div>`;
+  window._tmpMin=cur;
+}
+function stepMin(d){window._tmpMin=Math.max(0,Math.min(600,(window._tmpMin||0)+d));
+  document.getElementById('minVal').textContent=window._tmpMin;}
+function setMin(v){window._tmpMin=v;document.getElementById('minVal').textContent=v;}
+async function submitReading(){
+  if(!studentName){toast('Select your name');return;}
+  await up('reading',{roll:+studentName,d:todayStr(),minutes:window._tmpMin||0},['roll','d']);
+  const nm=DB.students.find(s=>s.roll==studentName)?.name||'';
+  toast(`✓ ${window._tmpMin||0} minutes saved!`);
+  renderStudent();
+}
 
-    ${studentName?`
-    ${locked?`<div class="lock-msg">🔒 Entries locked after 11:59 PM. New entries open tomorrow.</div>`:''}
+/* ============================================================
+   TEACHER LOGIN
+   ============================================================ */
+function askPin(){
+  document.getElementById('app').innerHTML=`
+   <div class="card" style="max-width:340px;margin:30px auto;text-align:center">
+     <div style="font-size:40px">🔑</div>
+     <h3 style="margin:6px 0 14px">Teacher PIN</h3>
+     <input class="inp" id="pin" type="password" inputmode="numeric" placeholder="• • • •"
+       style="text-align:center;letter-spacing:8px;font-size:22px" onkeydown="if(event.key==='Enter')checkPin()">
+     <button class="btn" style="margin-top:14px" onclick="checkPin()">Login</button>
+     <button class="btn ghost" style="margin-top:8px" onclick="goHome()">Cancel</button>
+   </div>`;
+  setTimeout(()=>document.getElementById('pin').focus(),100);
+}
+function checkPin(){
+  if(document.getElementById('pin').value===TEACHER_PIN){enterAdmin();}
+  else toast('Wrong PIN');
+}
+function enterAdmin(){
+  CURRENT="admin";
+  document.getElementById('roleBtn').classList.remove('hidden');
+  document.getElementById('nav').classList.remove('hidden');
+  setTab('students');
+}
 
-    <div class="session-box morning">
-      <div class="session-title">🌅 Morning Reading</div>
-      <div class="hm-row">
-        <div class="hm-box">
-          <select class="inp hm-sel" id="mH" onchange="setHM('morning','h',this.value)">
-            ${[...Array(13).keys()].map(h=>`<option value="${h}" ${Math.floor(tmpMin.morning/60)==h?'selected':''}>${h}</option>`).join('')}
-          </select>
-          <span class="hm-lbl">hr</span>
-        </div>
-        <div class="hm-box">
-          <select class="inp hm-sel" id="mM" onchange="setHM('morning','m',this.value)">
-            ${[0,5,10,15,20,25,30,35,40,45,50,55].map(m=>`<option value="${m}" ${tmpMin.morning%60==m?'selected':''}>${m}</option>`).join('')}
-          </select>
-          <span class="hm-lbl">min</span>
-        </div>
-      </div>
-      <div style="text-align:center;color:var(--muted);font-size:13px;margin:8px 0 12px">= <span id="mPreview">${tmpMin.morning}</span> minutes</div>
-      <button class="btn amber" ${locked?'disabled':''} onclick="submit('morning')">
-        ${mEntry&&mEntry.minutes>0?'✓ Update morning':'☀️ Save morning reading'}
-      </button>
-      ${mEntry&&mEntry.minutes>0?`<div style="text-align:center;margin-top:8px;color:#d97706;font-size:13px;font-weight:600">✓ Saved: ${Math.floor(mEntry.minutes/60)}h ${mEntry.minutes%60}m</div>`:''}
+/* ============================================================
+   ADMIN
+   ============================================================ */
+function groupBarHTML(){
+  return `<div class="card" style="padding:10px 12px;margin-top:14px">
+    <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:2px" class="scroll">
+      ${GROUPS.map(g=>`<button onclick="switchGroup('${g.id}')"
+         style="flex:0 0 auto;white-space:nowrap;border:1.5px solid ${curGroup===g.id?'var(--primary)':'var(--line)'};
+         background:${curGroup===g.id?'var(--soft)':'#fff'};color:${curGroup===g.id?'var(--primary-d)':'var(--ink)'};
+         padding:8px 14px;border-radius:999px;font-weight:700;font-size:13px">${g.icon} ${g.name}</button>`).join('')}
+      <button onclick="openGroupManager()" style="flex:0 0 auto;white-space:nowrap;border:1.5px dashed var(--line);
+        background:#fff;color:var(--muted);padding:8px 14px;border-radius:999px;font-weight:700;font-size:13px">+ New / Manage</button>
     </div>
-
-    <div class="session-box evening" style="margin-top:12px">
-      <div class="session-title">🌙 Evening Reading</div>
-      <div class="hm-row">
-        <div class="hm-box">
-          <select class="inp hm-sel" id="eH" onchange="setHM('evening','h',this.value)">
-            ${[...Array(13).keys()].map(h=>`<option value="${h}" ${Math.floor(tmpMin.evening/60)==h?'selected':''}>${h}</option>`).join('')}
-          </select>
-          <span class="hm-lbl">hr</span>
-        </div>
-        <div class="hm-box">
-          <select class="inp hm-sel" id="eM" onchange="setHM('evening','m',this.value)">
-            ${[0,5,10,15,20,25,30,35,40,45,50,55].map(m=>`<option value="${m}" ${tmpMin.evening%60==m?'selected':''}>${m}</option>`).join('')}
-          </select>
-          <span class="hm-lbl">min</span>
-        </div>
-      </div>
-      <div style="text-align:center;color:var(--muted);font-size:13px;margin:8px 0 12px">= <span id="ePreview">${tmpMin.evening}</span> minutes</div>
-      <button class="btn blue" ${locked?'disabled':''} onclick="submit('evening')">
-        ${eEntry&&eEntry.minutes>0?'✓ Update evening':'🌙 Save evening reading'}
-      </button>
-      ${eEntry&&eEntry.minutes>0?`<div style="text-align:center;margin-top:8px;color:var(--blue);font-size:13px;font-weight:600">✓ Saved: ${Math.floor(eEntry.minutes/60)}h ${eEntry.minutes%60}m</div>`:''}
-    </div>
-
-    <div class="row" style="margin-top:14px">
-      <div class="stat morning" style="flex:1"><div class="v">${tmpMin.morning}</div><div class="l">Today morning</div></div>
-      <div class="stat evening" style="flex:1"><div class="v">${tmpMin.evening}</div><div class="l">Today evening</div></div>
-      <div class="stat" style="flex:1"><div class="v">${tmpMin.morning+tmpMin.evening}</div><div class="l">Today total</div></div>
-    </div>
-    <div class="row" style="margin-top:10px">
-      <div class="stat hot" style="flex:1"><div class="v">🔥 ${readingStreak(studentName)}</div><div class="l">Day streak</div></div>
-      <div class="stat" style="flex:1"><div class="v">${totalMin(studentName)}</div><div class="l">All-time minutes</div></div>
-    </div>
-    `:''}
-  </div>
-
-  <div class="card">
-    <div class="section-t">Submitted today (${submittedToday.length}/${studs.length})</div>
-    ${submittedToday.length
-      ?`<div style="display:flex;flex-wrap:wrap;gap:7px">${submittedToday.map(s=>{
-          const m=getEntry(s.roll,today,'morning');
-          const e=getEntry(s.roll,today,'evening');
-          return `<span class="pill">✓ ${s.name.split(' ')[0]} (${(m?m.minutes:0)+(e?e.minutes:0)}min)</span>`;
-        }).join('')}</div>`
-      :`<p style="color:var(--muted);font-size:14px;margin:0">No one yet — be the first! 🚀</p>`}
   </div>`;
 }
-
-function setHM(session,unit,val){
-  const cur=tmpMin[session]||0;
-  const h=Math.floor(cur/60), m=cur%60;
-  if(unit==='h')tmpMin[session]=(+val)*60+m;
-  else tmpMin[session]=h*60+(+val);
-  // update only the small preview text — do NOT re-render the whole page
-  // (re-rendering destroys/recreates the <select> mid-interaction, which breaks
-  // selection on mobile Chrome)
-  const previewId=session==='morning'?'mPreview':'ePreview';
-  const el=document.getElementById(previewId);
-  if(el)el.textContent=tmpMin[session];
+function groupLink(id){
+  // build link to the reading page in the same folder, with this group's id preset
+  const base=location.href.replace(/[^\/]*$/,''); // current folder URL
+  return base+READING_PAGE+'?g='+id;
 }
-async function submit(session){
-  if(!studentName){toast('Please select your name');return;}
-  if(isLocked()){toast('🔒 Entries locked after 11:59 PM');return;}
-  await upReading(+studentName,todayStr(),session,tmpMin[session]||0);
-  toast(`✓ ${session==='morning'?'Morning':'Evening'}: ${tmpMin[session]||0} min saved!`);
-  render();
+function openGroupManager(){
+  openModal('Manage Groups',`
+    <label class="fld">Create new group</label>
+    <div style="display:flex;gap:8px">
+      <input class="inp" id="ng_name" placeholder="e.g. Class 8B, Evening Batch" style="flex:1">
+      <button class="btn sm" style="width:auto" onclick="doAddGroup()">+ Add</button>
+    </div>
+    <div class="section-t" style="margin-top:18px">Existing groups</div>
+    <div class="lst">
+      ${GROUPS.map(g=>`<div class="item" style="flex-wrap:wrap">
+        <div class="av">${g.icon}</div>
+        <div class="nm"><b>${g.name}</b><small>${(DB.students.filter(s=>(s.group_id||'class7a')===g.id&&s.active!==false)).length} students</small></div>
+        <button class="btn ghost sm" onclick="doRenameGroup('${g.id}')">✎</button>
+        <button class="btn danger sm" onclick="deleteGroup('${g.id}')">✕</button>
+        <button class="btn sm" style="width:100%;margin-top:8px;background:var(--soft);color:var(--primary-d);box-shadow:none" onclick="copyGroupLink('${g.id}','${g.name.replace(/'/g,"\\'")}')">🔗 Copy student link</button>
+      </div>`).join('')}
+    </div>
+    <button class="btn ghost" style="margin-top:16px" onclick="closeModal()">Close</button>`);
+  setTimeout(()=>document.getElementById('ng_name')?.focus(),100);
+}
+function copyGroupLink(id,name){
+  const link=groupLink(id);
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(link).then(()=>toast(`✓ ${name} link copied`)).catch(()=>fallbackCopy(link,name));
+  }else{
+    fallbackCopy(link,name);
+  }
+}
+function fallbackCopy(link,name){
+  const ta=document.createElement('textarea');
+  ta.value=link;document.body.appendChild(ta);ta.select();
+  try{document.execCommand('copy');toast(`✓ ${name} link copied`);}catch(e){toast(link);}
+  document.body.removeChild(ta);
+}
+function doAddGroup(){
+  const v=document.getElementById('ng_name').value;
+  if(!v.trim()){toast('Enter a group name');return;}
+  addGroup(v);closeModal();
+}
+function doRenameGroup(id){
+  const g=GROUPS.find(x=>x.id===id);
+  const nv=prompt('New name for this group:',g.name);
+  if(nv&&nv.trim())renameGroup(id,nv);
+}
+function switchGroup(id){curGroup=id;renderAdmin();}
+function withGroupBar(){
+  const app=document.getElementById('app');
+  app.insertAdjacentHTML('afterbegin',groupBarHTML());
+}
+function renderAdmin(){
+  document.getElementById('sub').textContent="Teacher dashboard";
+  ({students:renderStudentsTab,reading:renderReadingTab,readrep:renderReadingReportTab,meet:renderMeetTab,
+    exams:renderExamsTab,assign:renderAssignTab,perf:renderPerfTab}[TAB])();
 }
 
+/* ---- STUDENTS ---- */
+function renderStudentsTab(){
+  const s=activeStudents();
+  document.getElementById('app').innerHTML=`
+   <div class="card">
+     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+       <h3>Students <span style="color:var(--muted);font-weight:600;font-size:14px">(${s.length}/${MAX_STUDENTS})</span></h3>
+       <div style="display:flex;gap:6px">
+         <button class="btn ghost sm" style="width:auto" onclick="openBulkAdd()">📋 Paste list</button>
+         <button class="btn sm" style="width:auto" onclick="addStudent()" ${s.length>=MAX_STUDENTS?'disabled':''}>+ Add</button>
+       </div>
+     </div>
+     <div class="lst" style="margin-top:14px">
+       ${s.length?s.map(x=>`<div class="item">
+         <div class="av">${initials(x.name)}</div>
+         <div class="nm"><b>${x.name}</b><small>Roll ${x.roll} · 🔥${readingStreak(x.roll)} streak</small></div>
+         <button class="btn ghost sm" onclick="addStudent(${x.roll})">✎</button>
+         <button class="btn danger sm" onclick="rmStudent(${x.roll})">✕</button>
+       </div>`).join(''):'<div class="empty"><div class="ic">👥</div><p>Add students — "+ Add" or "📋 Paste list"</p></div>'}
+     </div>
+   </div>`;
+  withGroupBar();
+}
+function addStudent(roll){
+  const ex=roll?DB.students.find(s=>s.roll==roll):null;
+  const nextRoll=ex?ex.roll:(Math.max(0,...activeStudents().map(s=>+s.roll))+1);
+  openModal(`${ex?'Edit':'Add'} Student`,`
+    <label class="fld">Roll no.</label>
+    <input class="inp" id="m_roll" type="number" value="${nextRoll}" ${ex?'readonly':''}>
+    <label class="fld" style="margin-top:12px">Name</label>
+    <input class="inp" id="m_name" value="${ex?ex.name:''}" placeholder="Student name">
+    <button class="btn" style="margin-top:16px" onclick="saveStudent(${ex?ex.roll:'null'})">Save</button>`);
+  setTimeout(()=>document.getElementById('m_name').focus(),100);
+}
+
+function openBulkAdd(){
+  openModal('Paste student list',`
+    <p style="font-size:13px;color:var(--muted);margin:0 0 10px">Paste names — one per line. Bullets (*, -), numbers (1. 2.), and extra blank lines are auto-cleaned. Roll numbers continue automatically.</p>
+    <textarea class="inp" id="bulk_txt" rows="10" style="resize:vertical;font-family:inherit;line-height:1.6"
+      placeholder="ABDU SAMAD PP&#10;MUHAMMED NABIH KP&#10;MUHAMMED ANSIF&#10;..."></textarea>
+    <div id="bulk_preview" style="margin-top:10px;font-size:13px;color:var(--muted)"></div>
+    <button class="btn" style="margin-top:14px" onclick="doBulkAdd()">+ Add all to ${groupNameOf(curGroup)}</button>`);
+  setTimeout(()=>{
+    const ta=document.getElementById('bulk_txt');
+    ta.focus();
+    ta.addEventListener('input',updateBulkPreview);
+  },100);
+}
+function groupNameOf(id){return (GROUPS.find(g=>g.id===id)||{}).name||id;}
+function parseBulkNames(raw){
+  return raw.split('\n')
+    .map(l=>l.replace(/^[\s*•\-–—]+/,'').replace(/^\d+[\.\)]\s*/,'').trim())
+    .filter(l=>l.length>0 && !/^please include/i.test(l) && !/^\*+$/.test(l));
+}
+function updateBulkPreview(){
+  const names=parseBulkNames(document.getElementById('bulk_txt').value);
+  document.getElementById('bulk_preview').textContent=
+    names.length?`${names.length} name(s) detected — ready to add.`:'';
+}
+async function doBulkAdd(){
+  const names=parseBulkNames(document.getElementById('bulk_txt').value);
+  if(!names.length){toast('Paste some names first');return;}
+  const existing=activeStudents();
+  const existingNames=new Set(existing.map(s=>s.name.trim().toUpperCase()));
+  let nextRoll=Math.max(0,...DB.students.filter(s=>(s.group_id||'class7a')===curGroup).map(s=>+s.roll))+1;
+  let added=0, skipped=0;
+  for(const name of names){
+    if(existingNames.has(name.toUpperCase())){skipped++;continue;}
+    await up('students',{roll:nextRoll,name,active:true},['roll']);
+    existingNames.add(name.toUpperCase());
+    nextRoll++;added++;
+  }
+  closeModal();renderStudentsTab();
+  toast(`✓ ${added} added${skipped?`, ${skipped} duplicate(s) skipped`:''}`);
+}
+async function saveStudent(oldRoll){
+  const roll=+document.getElementById('m_roll').value, name=document.getElementById('m_name').value.trim();
+  if(!name){toast('Name required');return;}
+  if(oldRoll==null && activeStudents().some(s=>s.roll==roll)){toast('Roll already exists');return;}
+  await up('students',{roll,name,active:true},['roll']);
+  closeModal();renderStudentsTab();toast('Saved ✓');
+}
+async function rmStudent(roll){
+  if(!confirm('Remove this student? (reading/marks remain)'))return;
+  await del('students',{roll});renderStudentsTab();
+}
+
+/* ---- READING (admin view/correct) — morning + evening ---- */
+let readDate=todayStr();
+function getR(roll,d,session){return gReading().find(x=>x.roll==roll&&x.d===d&&x.session===session);}
+function renderReadingTab(){
+  const s=activeStudents();
+  const rows=s.map(st=>{
+    const m=getR(st.roll,readDate,'morning');
+    const e=getR(st.roll,readDate,'evening');
+    return{st,m:m?m.minutes:null,e:e?e.minutes:null};
+  });
+  const done=rows.filter(r=>(r.m>0)||(r.e>0)).length;
+  const totMin=rows.reduce((a,b)=>a+(b.m||0)+(b.e||0),0);
+  document.getElementById('app').innerHTML=`
+   <div class="card">
+     <h3>Reading log</h3>
+     <label class="fld" style="margin-top:12px">Date</label>
+     <input class="inp" type="date" value="${readDate}" onchange="readDate=this.value;renderReadingTab()">
+     <div class="stat-grid" style="margin-top:12px">
+       <div class="stat"><div class="v">${done}/${s.length}</div><div class="l">Submitted</div></div>
+       <div class="stat"><div class="v">${totMin}</div><div class="l">total minutes</div></div>
+     </div>
+   </div>
+   <div class="card">
+     <div class="section-t" style="margin-top:0">Edit / correct</div>
+     <div class="lst">
+       ${rows.map(r=>`<div class="item">
+         <div class="av">${initials(r.st.name)}</div>
+         <div class="nm"><b>${r.st.name}</b><small>Roll ${r.st.roll}</small></div>
+         <div style="display:flex;flex-direction:column;gap:4px">
+           <div style="display:flex;align-items:center;gap:5px">
+             <span style="font-size:11px;color:var(--muted);width:18px">🌅</span>
+             <input class="inp" style="width:64px;text-align:center;padding:7px" type="number" min="0"
+               value="${r.m!=null?r.m:''}" placeholder="—" onchange="setReading(${r.st.roll},'morning',this.value)">
+           </div>
+           <div style="display:flex;align-items:center;gap:5px">
+             <span style="font-size:11px;color:var(--muted);width:18px">🌙</span>
+             <input class="inp" style="width:64px;text-align:center;padding:7px" type="number" min="0"
+               value="${r.e!=null?r.e:''}" placeholder="—" onchange="setReading(${r.st.roll},'evening',this.value)">
+           </div>
+         </div>
+       </div>`).join('')}
+     </div>
+   </div>
+   <div class="card">
+     <div class="section-t" style="margin-top:0">🏆 Reading leaderboard (streak)</div>
+     <div class="lst">
+       ${[...s].map(st=>({st,sk:readingStreak(st.roll),tot:gReading().filter(x=>x.roll==st.roll).reduce((a,b)=>a+(+b.minutes||0),0)}))
+         .sort((a,b)=>b.sk-a.sk||b.tot-a.tot).slice(0,10).map((o,i)=>`<div class="item">
+         <div class="av" style="background:${i<3?'#fff5e6':'var(--soft)'}">${['🥇','🥈','🥉'][i]||i+1}</div>
+         <div class="nm"><b>${o.st.name}</b><small>${o.tot} min total</small></div>
+         <span class="pill amber">🔥 ${o.sk}</span>
+       </div>`).join('')}
+     </div>
+   </div>`;
+  withGroupBar();
+}
+async function setReading(roll,session,val){
+  await up('reading',{roll:+roll,d:readDate,session,minutes:val===''?0:+val},['roll','d','session']);
+  toast('Updated ✓');
+  renderReadingTab();
+}
+
+/* ============================================================
+   READING REPORT — daily / weekly / monthly / overall
+   ============================================================ */
+let repView='daily', repDate=todayStr(), repWeekStart=null, repMonth=todayStr().slice(0,7);
+
+function dateRangeWeek(anyDateStr){
+  const d=new Date(anyDateStr+'T00:00');
+  const day=d.getDay(); // 0=Sun
+  const offset=(day===0?-6:1-day); // week starts Monday
+  const start=new Date(d); start.setDate(d.getDate()+offset);
+  const end=new Date(start); end.setDate(start.getDate()+6);
+  return [start.toISOString().slice(0,10), end.toISOString().slice(0,10)];
+}
+function fmtShort(s){const d=new Date(s+'T00:00');return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short'});}
+function hm(min){if(!min)return '—';const h=Math.floor(min/60),m=min%60;return h>0?`${h}h ${m}m`:`${m}m`;}
+
+function sumFor(roll,startD,endD,session){
+  return gReading().filter(r=>r.roll==roll && r.d>=startD && r.d<=endD &&
+     (session?r.session===session:true)).reduce((a,b)=>a+(+b.minutes||0),0);
+}
+function daysActiveFor(roll,startD,endD){
+  return new Set(gReading().filter(r=>r.roll==roll && r.d>=startD && r.d<=endD && r.minutes>0).map(r=>r.d)).size;
+}
+
+function renderReadingReportTab(){
+  const s=activeStudents();
+  if(!repWeekStart)repWeekStart=dateRangeWeek(todayStr())[0];
+
+  let startD,endD,label;
+  if(repView==='daily'){startD=endD=repDate;label=fmtShort(repDate);}
+  else if(repView==='weekly'){const[ws,we]=dateRangeWeek(repWeekStart);startD=ws;endD=we;label=`${fmtShort(ws)} – ${fmtShort(we)}`;}
+  else if(repView==='monthly'){startD=repMonth+'-01';const last=new Date(+repMonth.slice(0,4),+repMonth.slice(5,7),0).getDate();
+    endD=repMonth+'-'+String(last).padStart(2,'0');
+    label=new Date(repMonth+'-01').toLocaleDateString('en-GB',{month:'long',year:'numeric'});}
+  else {const all=gReading().map(r=>r.d).sort();startD=all[0]||todayStr();endD=todayStr();label='All-time (overall)';}
+
+  const rows=s.map(st=>{
+    const m=sumFor(st.roll,startD,endD,'morning');
+    const e=sumFor(st.roll,startD,endD,'evening');
+    const days=daysActiveFor(st.roll,startD,endD);
+    return{st,m,e,tot:m+e,days};
+  }).sort((a,b)=>b.tot-a.tot);
+
+  const classTotal=rows.reduce((a,b)=>a+b.tot,0);
+  const classAvg=rows.length?Math.round(classTotal/rows.length):0;
+  const activeCount=rows.filter(r=>r.tot>0).length;
+
+  // ---- trend data: last 7 days (daily/weekly) or last 30 days (monthly/overall) ----
+  const trendDays=(repView==='monthly'||repView==='overall')?30:7;
+  const trendDates=[...Array(trendDays).keys()].map(i=>{
+    const d=new Date();d.setDate(d.getDate()-(trendDays-1-i));return d.toISOString().slice(0,10);
+  });
+  const trendVals=trendDates.map(d=>gReading().filter(r=>r.d===d).reduce((a,b)=>a+(+b.minutes||0),0));
+
+  document.getElementById('app').innerHTML=`
+   <div class="card">
+     <h3>📈 Reading Report</h3>
+     <div class="seg" style="margin-top:12px">
+       <button class="${repView==='daily'?'on':''}" onclick="repView='daily';renderReadingReportTab()">Daily</button>
+       <button class="${repView==='weekly'?'on':''}" onclick="repView='weekly';renderReadingReportTab()">Weekly</button>
+       <button class="${repView==='monthly'?'on':''}" onclick="repView='monthly';renderReadingReportTab()">Monthly</button>
+       <button class="${repView==='overall'?'on':''}" onclick="repView='overall';renderReadingReportTab()">Overall</button>
+     </div>
+
+     ${repView==='daily'?`<label class="fld" style="margin-top:14px">Date</label>
+        <input class="inp" type="date" value="${repDate}" onchange="repDate=this.value;renderReadingReportTab()">`:''}
+     ${repView==='weekly'?`<label class="fld" style="margin-top:14px">Any date in week</label>
+        <input class="inp" type="date" value="${repWeekStart}" onchange="repWeekStart=this.value;renderReadingReportTab()">`:''}
+     ${repView==='monthly'?`<label class="fld" style="margin-top:14px">Month</label>
+        <input class="inp" type="month" value="${repMonth}" onchange="repMonth=this.value;renderReadingReportTab()">`:''}
+
+     <div style="text-align:center;margin-top:14px;color:var(--muted);font-weight:600">${label} · ${groupNameOf(curGroup)}</div>
+
+     <div class="stat-grid" style="margin-top:12px">
+       <div class="stat"><div class="v">${activeCount}/${s.length}</div><div class="l">Students read</div></div>
+       <div class="stat"><div class="v">${hm(classTotal)}</div><div class="l">Class total</div></div>
+       <div class="stat morning"><div class="v">${hm(rows.reduce((a,b)=>a+b.m,0))}</div><div class="l">🌅 Morning total</div></div>
+       <div class="stat evening"><div class="v">${hm(rows.reduce((a,b)=>a+b.e,0))}</div><div class="l">🌙 Evening total</div></div>
+     </div>
+     <div class="stat hot" style="margin-top:10px"><div class="v">${hm(classAvg)}</div><div class="l">Avg / student (this period)</div></div>
+   </div>
+
+   <div class="card">
+     <div class="section-t" style="margin-top:0">📊 Student-wise minutes</div>
+     ${barChartSVG(rows)}
+   </div>
+
+   <div class="card">
+     <div class="section-t" style="margin-top:0">📈 Last ${trendDays} days — class total trend</div>
+     ${trendChartSVG(trendDates,trendVals)}
+   </div>
+
+   <div class="card">
+     <div class="section-t" style="margin-top:0">Student-wise breakdown</div>
+     <div class="scroll"><table class="tbl">
+       <thead><tr><th>Name</th><th class="c">🌅</th><th class="c">🌙</th><th class="c">Total</th>${repView!=='daily'?'<th class="c">Days</th>':''}</tr></thead>
+       <tbody>
+       ${rows.map(r=>`<tr>
+         <td>${r.st.name}</td>
+         <td class="c">${hm(r.m)}</td>
+         <td class="c">${hm(r.e)}</td>
+         <td class="c"><b>${hm(r.tot)}</b></td>
+         ${repView!=='daily'?`<td class="c">${r.days}</td>`:''}
+       </tr>`).join('')}
+       </tbody>
+     </table></div>
+   </div>
+
+   <div class="card no-print">
+     <div class="row">
+       <button class="btn" style="background:#25D366;box-shadow:0 4px 14px rgba(37,211,102,.3)" onclick="shareReportWhatsApp()">📤 Share on WhatsApp</button>
+       <button class="btn ghost" onclick="window.print()">🖨️ Print</button>
+     </div>
+   </div>`;
+  withGroupBar();
+  _lastReportData={label,rows:rows.map(r=>({name:r.st.name,m:r.m,e:r.e,tot:r.tot})),classTotal,classAvg,activeCount,total:s.length};
+}
+
+/* ---- Bar chart: student-wise total minutes (SVG, self-contained) ---- */
+function barChartSVG(rows){
+  const top=rows.slice(0,15); // cap for readability
+  if(!top.length||top.every(r=>r.tot===0))return `<p style="color:var(--muted);font-size:13px;text-align:center;padding:20px 0">No reading data yet for this period.</p>`;
+  const max=Math.max(...top.map(r=>r.tot),1);
+  const rowH=30, gap=8, leftW=110, chartW=300, padTop=6;
+  const h=top.length*(rowH+gap)+padTop;
+  const bars=top.map((r,i)=>{
+    const y=padTop+i*(rowH+gap);
+    const w=Math.max(2,(r.tot/max)*chartW);
+    const color=i===0?'#15786b':(i===1?'#2563eb':(i===2?'#f59e0b':'#94a3b8'));
+    const nm=r.st.name.length>14?r.st.name.slice(0,13)+'…':r.st.name;
+    return `<text x="${leftW-8}" y="${y+rowH/2+4}" text-anchor="end" font-size="11" fill="#1b2030" font-weight="600">${nm}</text>
+      <rect x="${leftW}" y="${y}" width="${chartW}" height="${rowH}" rx="6" fill="#eef3f1"/>
+      <rect x="${leftW}" y="${y}" width="${w}" height="${rowH}" rx="6" fill="${color}"/>
+      <text x="${leftW+w+6}" y="${y+rowH/2+4}" font-size="11" fill="#697086" font-weight="700">${hm(r.tot)}</text>`;
+  }).join('');
+  return `<svg viewBox="0 0 ${leftW+chartW+60} ${h}" style="width:100%;height:auto;font-family:inherit">${bars}</svg>`;
+}
+
+/* ---- Trend chart: daily class totals over time (SVG line) ---- */
+function trendChartSVG(dates,vals){
+  const w=320,h=140,padL=34,padB=22,padT=10,padR=10;
+  const max=Math.max(...vals,1);
+  const innerW=w-padL-padR, innerH=h-padT-padB;
+  const stepX=vals.length>1?innerW/(vals.length-1):0;
+  const pts=vals.map((v,i)=>[padL+i*stepX, padT+innerH-(v/max)*innerH]);
+  const path=pts.map((p,i)=>(i===0?'M':'L')+p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
+  const areaPath=path+` L${pts[pts.length-1][0].toFixed(1)},${padT+innerH} L${pts[0][0].toFixed(1)},${padT+innerH} Z`;
+  const gridLines=[0,0.5,1].map(f=>{
+    const y=padT+innerH-f*innerH;
+    return `<line x1="${padL}" y1="${y}" x2="${w-padR}" y2="${y}" stroke="#e7e6df" stroke-width="1"/>
+      <text x="${padL-6}" y="${y+3}" text-anchor="end" font-size="9" fill="#697086">${Math.round(f*max)}</text>`;
+  }).join('');
+  // show every nth date label to avoid crowding
+  const labelEvery=Math.ceil(vals.length/6);
+  const xLabels=pts.map((p,i)=>i%labelEvery===0?`<text x="${p[0].toFixed(1)}" y="${h-4}" text-anchor="middle" font-size="9" fill="#697086">${fmtShort(dates[i])}</text>`:'').join('');
+  const dots=pts.map((p,i)=>`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3" fill="#15786b"/>`).join('');
+  return `<svg viewBox="0 0 ${w} ${h}" style="width:100%;height:auto;font-family:inherit">
+    ${gridLines}
+    <path d="${areaPath}" fill="#15786b" opacity="0.08"/>
+    <path d="${path}" fill="none" stroke="#15786b" stroke-width="2.5"/>
+    ${dots}${xLabels}
+  </svg>`;
+}
+
+/* ---- WhatsApp share: build a readable text summary and open wa.me ---- */
+let _lastReportData=null;
+function shareReportWhatsApp(){
+  const data=_lastReportData;
+  if(!data)return;
+  const lines=[];
+  lines.push(`📚 *Reading Report — ${groupNameOf(curGroup)}*`);
+  lines.push(`🗓️ ${data.label}`);
+  lines.push('');
+  lines.push(`✅ Students read: ${data.activeCount}/${data.total}`);
+  lines.push(`⏱️ Class total: ${hm(data.classTotal)}`);
+  lines.push(`📊 Average: ${hm(data.classAvg)}`);
+  lines.push('');
+  lines.push('*Top readers:*');
+  data.rows.slice(0,10).forEach((r,i)=>{
+    if(r.tot>0)lines.push(`${i+1}. ${r.name} — ${hm(r.tot)}`);
+  });
+  const text=encodeURIComponent(lines.join('\n'));
+  window.open(`https://wa.me/?text=${text}`,'_blank');
+}
+
+/* ---- MEET ATTENDANCE ---- */
+let meetDate=todayStr();
+function renderMeetTab(){
+  const s=activeStudents();
+  const get=(roll)=>gAttendance().find(a=>a.roll==roll&&a.d===meetDate)?.status||null;
+  const cnt=(st)=>s.filter(x=>get(x.roll)===st).length;
+  document.getElementById('app').innerHTML=`
+   <div class="card">
+     <h3>🎥 Google Meet attendance</h3>
+     <label class="fld" style="margin-top:12px">Session date</label>
+     <input class="inp" type="date" value="${meetDate}" onchange="meetDate=this.value;renderMeetTab()">
+     <div class="row" style="margin-top:10px">
+       <button class="btn ghost sm" onclick="bulkMark('present')">All present</button>
+       <button class="btn ghost sm" onclick="bulkMark(null)">Clear</button>
+     </div>
+     <div class="row" style="margin-top:10px;gap:8px">
+       <span class="pill green" style="flex:0">P ${cnt('present')}</span>
+       <span class="pill amber" style="flex:0">Late ${cnt('late')}</span>
+       <span class="pill red" style="flex:0">A ${cnt('absent')}</span>
+     </div>
+   </div>
+   <div class="card">
+     <div class="lst">
+       ${s.map(st=>{const v=get(st.roll);return `<div class="item">
+         <div class="av">${initials(st.name)}</div>
+         <div class="nm"><b>${st.name}</b><small>Roll ${st.roll}</small></div>
+         <div class="seg" style="width:auto;flex:0">
+           <button class="${v==='present'?'on':''}" style="color:var(--green)" onclick="setAtt(${st.roll},'present')">P</button>
+           <button class="${v==='late'?'on':''}" style="color:var(--amber)" onclick="setAtt(${st.roll},'late')">L</button>
+           <button class="${v==='absent'?'on':''}" style="color:var(--red)" onclick="setAtt(${st.roll},'absent')">A</button>
+         </div>
+       </div>`;}).join('')}
+     </div>
+   </div>`;
+  withGroupBar();
+}
+async function setAtt(roll,status){await up('attendance',{roll:+roll,d:meetDate,status},['roll','d']);renderMeetTab();}
+async function bulkMark(status){
+  for(const st of activeStudents()){
+    if(status===null) await del('attendance',{roll:st.roll,d:meetDate});
+    else await up('attendance',{roll:st.roll,d:meetDate,status},['roll','d']);
+  }
+  renderMeetTab();toast(status?'All present ✓':'Cleared');
+}
+
+/* ---- EXAMS ---- */
+let curExam=null;
+function renderExamsTab(){
+  const ex=[...gExams()].sort((a,b)=>(b.d||'').localeCompare(a.d||''));
+  if(curExam){renderExamMarks();return;}
+  document.getElementById('app').innerHTML=`
+   <div class="card">
+     <div style="display:flex;justify-content:space-between;align-items:center">
+       <h3>📝 Exams</h3><button class="btn sm" style="width:auto" onclick="newExam()">+ New exam</button>
+     </div>
+     <div class="lst" style="margin-top:14px">
+       ${ex.length?ex.map(e=>{const n=DB.exam_marks.filter(m=>m.exam_id==e.id).length;return `<div class="item" onclick="curExam=${e.id};renderExamsTab()">
+         <div class="av">📝</div>
+         <div class="nm"><b>${e.name}</b><small>${e.subject||'—'} · /${e.max} · ${e.d?fmtDate(e.d):''}</small></div>
+         <span class="pill ${n?'green':'gray'}">${n} marks</span>
+       </div>`;}).join(''):'<div class="empty"><div class="ic">📝</div><p>Create an exam</p></div>'}
+     </div>
+   </div>`;
+  withGroupBar();
+}
+function newExam(){
+  openModal('New exam',`
+    <label class="fld">Exam name</label><input class="inp" id="e_name" placeholder="e.g. Unit Test 1">
+    <div class="row" style="margin-top:12px">
+      <div><label class="fld">Subject</label><input class="inp" id="e_sub" placeholder="Physics"></div>
+      <div><label class="fld">Max marks</label><input class="inp" id="e_max" type="number" value="40"></div>
+    </div>
+    <label class="fld" style="margin-top:12px">Date</label><input class="inp" id="e_date" type="date" value="${todayStr()}">
+    <button class="btn" style="margin-top:16px" onclick="saveExam()">Create</button>`);
+}
+async function saveExam(){
+  const name=document.getElementById('e_name').value.trim();
+  if(!name){toast('Name required');return;}
+  const id=Date.now();
+  await up('exams',{id,name,subject:document.getElementById('e_sub').value.trim(),
+    max:+document.getElementById('e_max').value||40,d:document.getElementById('e_date').value},['id']);
+  closeModal();renderExamsTab();
+}
+function renderExamMarks(){
+  const e=gExams().find(x=>x.id==curExam);const s=activeStudents();
+  document.getElementById('app').innerHTML=`
+   <div class="card">
+     <button class="btn ghost sm" onclick="curExam=null;renderExamsTab()">← Back</button>
+     <h3 style="margin-top:12px">${e.name}</h3>
+     <p style="color:var(--muted);margin:4px 0 0">${e.subject||''} · max ${e.max} · ${e.d?fmtDate(e.d):''}</p>
+     <button class="btn danger sm" style="width:auto;margin-top:10px" onclick="rmExam(${e.id})">Delete exam</button>
+   </div>
+   <div class="card">
+     <div class="lst">
+       ${s.map(st=>{const m=DB.exam_marks.find(x=>x.exam_id==e.id&&x.roll==st.roll);
+        const pct=m?Math.round(m.marks/e.max*100):null;return `<div class="item">
+         <div class="av">${initials(st.name)}</div>
+         <div class="nm"><b>${st.name}</b><small>Roll ${st.roll}</small></div>
+         ${gradeBadge(pct)}
+         <input class="inp" style="width:72px;text-align:center" type="number" min="0" max="${e.max}"
+            value="${m?m.marks:''}" placeholder="—" onchange="setExamMark(${e.id},${st.roll},this.value)">
+       </div>`;}).join('')}
+     </div>
+   </div>`;
+  withGroupBar();
+}
+async function setExamMark(eid,roll,val){
+  await up('exam_marks',{exam_id:+eid,roll:+roll,marks:val===''?null:+val},['exam_id','roll']);
+  renderExamMarks();
+}
+async function rmExam(id){if(!confirm('Delete exam + its marks?'))return;
+  await del('exams',{id});DB.exam_marks=DB.exam_marks.filter(m=>m.exam_id!=id);saveLocal();
+  curExam=null;renderExamsTab();}
+
+/* ---- ASSIGNMENTS ---- */
+let curAsg=null;
+function renderAssignTab(){
+  if(curAsg){renderAsgMarks();return;}
+  const a=[...gAssignments()].sort((x,y)=>(y.due||'').localeCompare(x.due||''));
+  document.getElementById('app').innerHTML=`
+   <div class="card">
+     <div style="display:flex;justify-content:space-between;align-items:center">
+       <h3>📋 Assignments</h3><button class="btn sm" style="width:auto" onclick="newAsg()">+ New</button>
+     </div>
+     <div class="lst" style="margin-top:14px">
+       ${a.length?a.map(t=>{const sub=DB.assign_marks.filter(m=>m.aid==t.id&&m.status==='submitted').length;
+        return `<div class="item" onclick="curAsg=${t.id};renderAssignTab()">
+         <div class="av">📋</div>
+         <div class="nm"><b>${t.title}</b><small>/${t.max} · due ${t.due?fmtDate(t.due):'—'}</small></div>
+         <span class="pill ${sub?'green':'gray'}">${sub} done</span>
+       </div>`;}).join(''):'<div class="empty"><div class="ic">📋</div><p>Create an assignment</p></div>'}
+     </div>
+   </div>`;
+  withGroupBar();
+}
+function newAsg(){
+  openModal('New assignment',`
+    <label class="fld">Title</label><input class="inp" id="a_title" placeholder="e.g. Ch.3 problems">
+    <div class="row" style="margin-top:12px">
+      <div><label class="fld">Max marks</label><input class="inp" id="a_max" type="number" value="10"></div>
+      <div><label class="fld">Due date</label><input class="inp" id="a_due" type="date" value="${todayStr()}"></div>
+    </div>
+    <button class="btn" style="margin-top:16px" onclick="saveAsg()">Create</button>`);
+}
+async function saveAsg(){
+  const title=document.getElementById('a_title').value.trim();if(!title){toast('Title required');return;}
+  const id=Date.now();
+  await up('assignments',{id,title,max:+document.getElementById('a_max').value||10,
+    due:document.getElementById('a_due').value},['id']);
+  closeModal();renderAssignTab();
+}
+function renderAsgMarks(){
+  const t=gAssignments().find(x=>x.id==curAsg);const s=activeStudents();
+  document.getElementById('app').innerHTML=`
+   <div class="card">
+     <button class="btn ghost sm" onclick="curAsg=null;renderAssignTab()">← Back</button>
+     <h3 style="margin-top:12px">${t.title}</h3>
+     <p style="color:var(--muted);margin:4px 0 0">max ${t.max} · due ${t.due?fmtDate(t.due):'—'}</p>
+     <button class="btn danger sm" style="width:auto;margin-top:10px" onclick="rmAsg(${t.id})">Delete</button>
+   </div>
+   <div class="card">
+     <div class="lst">
+       ${s.map(st=>{const m=DB.assign_marks.find(x=>x.aid==t.id&&x.roll==st.roll);
+        const done=m&&m.status==='submitted';return `<div class="item">
+         <div class="av">${initials(st.name)}</div>
+         <div class="nm"><b>${st.name}</b><small>Roll ${st.roll}</small></div>
+         <button class="btn ${done?'':'ghost'} sm" style="width:auto" onclick="toggleSub(${t.id},${st.roll})">${done?'✓ Done':'Mark'}</button>
+         <input class="inp" style="width:64px;text-align:center" type="number" min="0" max="${t.max}"
+            value="${m&&m.marks!=null?m.marks:''}" placeholder="—" onchange="setAsgMark(${t.id},${st.roll},this.value)">
+       </div>`;}).join('')}
+     </div>
+   </div>`;
+  withGroupBar();
+}
+async function toggleSub(aid,roll){
+  const m=DB.assign_marks.find(x=>x.aid==aid&&x.roll==roll);
+  const ns=(m&&m.status==='submitted')?'pending':'submitted';
+  await up('assign_marks',{aid:+aid,roll:+roll,status:ns,marks:m?m.marks:null},['aid','roll']);
+  renderAsgMarks();
+}
+async function setAsgMark(aid,roll,val){
+  const m=DB.assign_marks.find(x=>x.aid==aid&&x.roll==roll);
+  await up('assign_marks',{aid:+aid,roll:+roll,marks:val===''?null:+val,
+    status:m?m.status:'submitted'},['aid','roll']);
+  renderAsgMarks();
+}
+async function rmAsg(id){if(!confirm('Delete assignment?'))return;
+  await del('assignments',{id});DB.assign_marks=DB.assign_marks.filter(m=>m.aid!=id);saveLocal();
+  curAsg=null;renderAssignTab();}
+
+/* ============================================================
+   PERFORMANCE / REPORT
+   ============================================================ */
+function perfOf(roll){
+  const rd=gReading().filter(r=>r.roll==roll);
+  const readMin=rd.reduce((a,b)=>a+(+b.minutes||0),0);
+  const readDays=rd.filter(r=>r.minutes>0).length;
+  const sessions=[...new Set(gAttendance().map(a=>a.d))];
+  const myAtt=gAttendance().filter(a=>a.roll==roll);
+  const present=myAtt.filter(a=>a.status==='present').length;
+  const late=myAtt.filter(a=>a.status==='late').length;
+  const attPct=sessions.length?Math.round((present+late*0.5)/sessions.length*100):null;
+  // exams
+  let ePctArr=[];
+  gExams().forEach(e=>{const m=DB.exam_marks.find(x=>x.exam_id==e.id&&x.roll==roll);
+    if(m&&m.marks!=null)ePctArr.push(m.marks/e.max*100);});
+  const examPct=ePctArr.length?Math.round(ePctArr.reduce((a,b)=>a+b)/ePctArr.length):null;
+  // assignments
+  let aPctArr=[],subC=0;
+  gAssignments().forEach(t=>{const m=DB.assign_marks.find(x=>x.aid==t.id&&x.roll==roll);
+    if(m&&m.status==='submitted')subC++;
+    if(m&&m.marks!=null)aPctArr.push(m.marks/t.max*100);});
+  const asgPct=aPctArr.length?Math.round(aPctArr.reduce((a,b)=>a+b)/aPctArr.length):null;
+  const asgRate=gAssignments().length?Math.round(subC/gAssignments().length*100):null;
+  // overall = avg of available components
+  const comp=[attPct,examPct,asgPct].filter(v=>v!=null);
+  const overall=comp.length?Math.round(comp.reduce((a,b)=>a+b)/comp.length):null;
+  return{readMin,readDays,streak:readingStreak(roll),attPct,present,late,
+    sessions:sessions.length,examPct,asgPct,asgRate,subC,overall};
+}
+function renderPerfTab(){
+  const s=activeStudents();
+  const ranked=s.map(st=>({st,p:perfOf(st.roll)}))
+    .sort((a,b)=>(b.p.overall??-1)-(a.p.overall??-1));
+  document.getElementById('app').innerHTML=`
+   <div class="card no-print">
+     <div style="display:flex;justify-content:space-between;align-items:center">
+       <h3>📊 Class performance</h3>
+       <button class="btn ghost sm" style="width:auto" onclick="window.print()">🖨️ Print</button>
+     </div>
+     <p style="color:var(--muted);font-size:13px;margin:8px 0 0">Overall = average of Attendance, Exam, Assignment. Tap a student's name for their report card.</p>
+   </div>
+   <div class="card">
+     <div class="scroll"><table class="tbl">
+       <thead><tr><th>#</th><th>Name</th><th class="c">🔥</th><th class="c">Att%</th><th class="c">Exam</th><th class="c">Task</th><th class="c">Overall</th></tr></thead>
+       <tbody>
+       ${ranked.map((o,i)=>`<tr onclick="showReport(${o.st.roll})" style="cursor:pointer">
+         <td>${i+1}</td>
+         <td><b>${o.st.name}</b></td>
+         <td class="c">${o.p.streak}</td>
+         <td class="c">${o.p.attPct!=null?o.p.attPct+'%':'—'}</td>
+         <td class="c">${gradeBadge(o.p.examPct)}</td>
+         <td class="c">${gradeBadge(o.p.asgPct)}</td>
+         <td class="c">${gradeBadge(o.p.overall)}</td>
+       </tr>`).join('')}
+       </tbody>
+     </table></div>
+   </div>`;
+  withGroupBar();
+}
+function showReport(roll){
+  const st=DB.students.find(s=>s.roll==roll);const p=perfOf(roll);
+  const s=activeStudents();
+  const rank=s.map(x=>({roll:x.roll,o:perfOf(x.roll).overall??-1})).sort((a,b)=>b.o-a.o)
+    .findIndex(x=>x.roll==roll)+1;
+  openModal(`Report — ${st.name}`,`
+    <div style="text-align:center;margin-bottom:6px">
+      <div class="av" style="width:60px;height:60px;font-size:22px;margin:0 auto 8px;border-radius:16px">${initials(st.name)}</div>
+      <div style="color:var(--muted);font-size:13px">Roll ${st.roll} · Class rank #${rank}/${s.length}</div>
+      <div style="margin-top:8px">${gradeBadge(p.overall)} <b style="font-size:20px">${p.overall!=null?p.overall+'%':'—'}</b> overall</div>
+    </div>
+    <div class="stat-grid" style="margin-top:12px">
+      <div class="stat hot"><div class="v">🔥 ${p.streak}</div><div class="l">Reading streak</div></div>
+      <div class="stat"><div class="v">${p.readMin}</div><div class="l">Total min (${p.readDays} days)</div></div>
+      <div class="stat"><div class="v">${p.attPct!=null?p.attPct+'%':'—'}</div><div class="l">Meet attendance (${p.present}/${p.sessions})</div></div>
+      <div class="stat"><div class="v">${p.examPct!=null?p.examPct+'%':'—'}</div><div class="l">Exam average</div></div>
+      <div class="stat"><div class="v">${p.asgPct!=null?p.asgPct+'%':'—'}</div><div class="l">Assignment marks</div></div>
+      <div class="stat"><div class="v">${p.asgRate!=null?p.asgRate+'%':'—'}</div><div class="l">Submitted (${p.subC}/${gAssignments().length})</div></div>
+    </div>
+    <div class="section-t">Exam-wise</div>
+    <div class="scroll"><table class="tbl"><tbody>
+      ${gExams().map(e=>{const m=DB.exam_marks.find(x=>x.exam_id==e.id&&x.roll==roll);
+        return `<tr><td>${e.name}<br><small style="color:var(--muted)">${e.subject||''}</small></td>
+        <td class="c">${m&&m.marks!=null?m.marks+'/'+e.max:'—'}</td>
+        <td class="c">${m&&m.marks!=null?gradeBadge(Math.round(m.marks/e.max*100)):'—'}</td></tr>`;}).join('')
+        ||'<tr><td style="color:var(--muted)">No exams</td></tr>'}
+    </tbody></table></div>
+    <button class="btn ghost" style="margin-top:16px" onclick="closeModal()">Close</button>`);
+}
+
+/* ============================================================
+   MODAL
+   ============================================================ */
+function openModal(title,html){
+  let m=document.getElementById('modal');
+  if(!m){m=document.createElement('div');m.className='modal-bk';m.id='modal';
+    m.onclick=(e)=>{if(e.target===m)closeModal();};document.body.appendChild(m);}
+  m.innerHTML=`<div class="modal"><h3>${title}</h3>${html}</div>`;
+}
+function closeModal(){const m=document.getElementById('modal');if(m)m.remove();}
+
+/* ============================================================
+   BOOT
+   ============================================================ */
 (async function(){
+  document.getElementById('roleBtn').classList.add('hidden');
+  document.getElementById('sub').textContent="Teacher only";
   await initDB();
-  const qg=new URLSearchParams(location.search).get('g');
-  if(qg && GROUPS.some(g=>g.id===qg)){curGroup=qg;LOCKED_GROUP=true;}
-  render();
+  askPin();
 })();
 </script>
 </body>
