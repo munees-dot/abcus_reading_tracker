@@ -182,10 +182,20 @@ const MAX_STUDENTS  = 30;
 
 /* ---------- Supabase / storage layer ---------- */
 let sb=null, ONLINE=false;
-const LS="stTracker_v1";
+const LS="stTracker_v3";
 let DB={students:[],reading:[],attendance:[],exams:[],exam_marks:[],assignments:[],assign_marks:[]};
 
-const PRESET_STUDENTS=[
+let GROUPS=[
+  {id:'class7a', name:'Class 7A', icon:'🏫'},
+  {id:'abacus',  name:'Abacus Academy', icon:'🧮'},
+  {id:'dreams',  name:'Dreams Club', icon:'🌟'},
+];
+let curGroup='class7a';
+const GROUP_ICONS=['🏫','🧮','🌟','📚','🎯','🎨','⚽','🎵','🔬','🧩','🌱','💡','🏆','🌈'];
+function slugify(s){return s.trim().toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'')||('g'+Date.now());}
+
+const PRESET_STUDENTS={
+class7a:[
   {roll:1,name:"ABDU SAMAD PP",active:true},
   {roll:2,name:"MUHAMMED NABIH KP",active:true},
   {roll:3,name:"MUHAMMED ANSIF",active:true},
@@ -212,16 +222,23 @@ const PRESET_STUDENTS=[
   {roll:24,name:"FATHIMA AMNA K",active:true},
   {roll:25,name:"MUHAMMED MISHAL",active:true},
   {roll:26,name:"MUHAMMED RISHAL UP",active:true},
-];
+],
+abacus:[],
+dreams:[],
+};
 function loadLocal(){
   try{const d=JSON.parse(localStorage.getItem(LS));if(d)DB={...DB,...d};}catch(e){}
-  // seed preset students if DB is empty
-  if(!DB.students.length){DB.students=PRESET_STUDENTS.map(s=>({...s}));}
+  GROUPS.forEach(g=>{
+    if(!DB.students.some(s=>(s.group_id||'class7a')===g.id)){
+      (PRESET_STUDENTS[g.id]||[]).forEach(s=>DB.students.push({...s,group_id:g.id}));
+    }
+  });
 }
 function saveLocal(){localStorage.setItem(LS,JSON.stringify(DB));}
 
 async function initDB(){
   loadLocal();
+  loadGroupsLocal();
   if(SUPABASE_URL.startsWith("http")&&SUPABASE_ANON.length>20){
     try{
       sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON);
@@ -243,19 +260,58 @@ async function pullAll(){
     const {data,error}=await sb.from(t).select("*");
     if(!error&&data) DB[t]=data;
   }
+  try{
+    const {data,error}=await sb.from('groups').select('*').order('created_at',{ascending:true});
+    if(!error&&data&&data.length) GROUPS=data.map(g=>({id:g.id,name:g.name,icon:g.icon||'📘'}));
+  }catch(e){console.warn('groups pull failed',e);}
   saveLocal();
+  saveGroupsLocal();
 }
-/* upsert helper: writes cloud (if online) + local mirror */
+function saveGroupsLocal(){localStorage.setItem(LS+'_groups',JSON.stringify(GROUPS));}
+function loadGroupsLocal(){
+  try{const g=JSON.parse(localStorage.getItem(LS+'_groups'));if(g&&g.length)GROUPS=g;}catch(e){}
+}
+async function addGroup(name){
+  name=name.trim();if(!name)return;
+  const id=slugify(name);
+  if(GROUPS.some(g=>g.id===id)){toast('Group already exists');return;}
+  const icon=GROUP_ICONS[GROUPS.length%GROUP_ICONS.length];
+  GROUPS.push({id,name,icon});
+  saveGroupsLocal();
+  if(ONLINE){try{await sb.from('groups').upsert({id,name,icon},{onConflict:'id'});}catch(e){console.warn(e);}}
+  curGroup=id;
+  renderAdmin();
+  toast(`✓ "${name}" group created`);
+}
+async function renameGroup(id,newName){
+  newName=newName.trim();if(!newName)return;
+  const g=GROUPS.find(x=>x.id===id);if(!g)return;
+  g.name=newName;saveGroupsLocal();
+  if(ONLINE){try{await sb.from('groups').update({name:newName}).eq('id',id);}catch(e){}}
+  renderAdmin();toast('Renamed ✓');
+}
+async function deleteGroup(id){
+  if(GROUPS.length<=1){toast('At least one group required');return;}
+  const g=GROUPS.find(x=>x.id===id);
+  if(!confirm(`Delete "${g.name}"? Its students/reading/marks data will remain in the database but hidden from this list.`))return;
+  GROUPS=GROUPS.filter(x=>x.id!==id);saveGroupsLocal();
+  if(ONLINE){try{await sb.from('groups').delete().eq('id',id);}catch(e){}}
+  if(curGroup===id)curGroup=GROUPS[0]?.id||'class7a';
+  renderAdmin();toast('Group removed');
+}
+/* upsert helper: writes cloud (if online) + local mirror. Auto-injects group_id. */
 async function up(table,row,conflict){
-  // local mirror
+  row={group_id:curGroup,...row};
+  const fullConflict=conflict.includes('group_id')?conflict:['group_id',...conflict];
   const arr=DB[table];
-  const keyMatch=(r)=>conflict.every(k=>String(r[k])===String(row[k]));
+  const keyMatch=(r)=>fullConflict.every(k=>String(r[k])===String(row[k]));
   const i=arr.findIndex(keyMatch);
   if(i>=0) arr[i]={...arr[i],...row}; else arr.push({...row});
   saveLocal();
-  if(ONLINE){try{await sb.from(table).upsert(row,{onConflict:conflict.join(",")});}catch(e){console.warn(e);}}
+  if(ONLINE){try{await sb.from(table).upsert(row,{onConflict:fullConflict.join(",")});}catch(e){console.warn(e);}}
 }
 async function del(table,match){
+  match={group_id:curGroup,...match};
   DB[table]=DB[table].filter(r=>!Object.keys(match).every(k=>String(r[k])===String(match[k])));
   saveLocal();
   if(ONLINE){try{let q=sb.from(table).delete();for(const k in match)q=q.eq(k,match[k]);await q;}catch(e){}}
@@ -273,11 +329,15 @@ function grade(pct){
   if(pct>=30)return['D','D'];return['E','E'];}
 function gradeBadge(pct){if(pct==null||isNaN(pct))return '<span class="pill gray">—</span>';
   const[g,c]=grade(pct);return `<span class="gb g-${c}">${g}</span>`;}
-const activeStudents=()=>DB.students.filter(s=>s.active!==false).sort((a,b)=>a.roll-b.roll);
+const activeStudents=()=>DB.students.filter(s=>(s.group_id||'class7a')===curGroup&&s.active!==false).sort((a,b)=>a.roll-b.roll);
+const gExams=()=>DB.exams.filter(e=>(e.group_id||'class7a')===curGroup);
+const gAssignments=()=>DB.assignments.filter(a=>(a.group_id||'class7a')===curGroup);
+const gAttendance=()=>gAttendance().filter(a=>(a.group_id||'class7a')===curGroup);
+const gReading=()=>DB.reading.filter(r=>(r.group_id||'class7a')===curGroup);
 
 /* streak: consecutive days up to today with reading>0 */
 function readingStreak(roll){
-  const set=new Set(DB.reading.filter(r=>r.roll==roll&&r.minutes>0).map(r=>r.d));
+  const set=new Set(gReading().filter(r=>r.roll==roll&&r.minutes>0).map(r=>r.d));
   let s=0;let d=new Date();
   for(;;){const ds=d.toISOString().slice(0,10);
     if(set.has(ds)){s++;d.setDate(d.getDate()-1);}
@@ -419,6 +479,52 @@ function enterAdmin(){
 /* ============================================================
    ADMIN
    ============================================================ */
+function groupBarHTML(){
+  return `<div class="card" style="padding:10px 12px;margin-top:14px">
+    <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:2px" class="scroll">
+      ${GROUPS.map(g=>`<button onclick="switchGroup('${g.id}')"
+         style="flex:0 0 auto;white-space:nowrap;border:1.5px solid ${curGroup===g.id?'var(--primary)':'var(--line)'};
+         background:${curGroup===g.id?'var(--soft)':'#fff'};color:${curGroup===g.id?'var(--primary-d)':'var(--ink)'};
+         padding:8px 14px;border-radius:999px;font-weight:700;font-size:13px">${g.icon} ${g.name}</button>`).join('')}
+      <button onclick="openGroupManager()" style="flex:0 0 auto;white-space:nowrap;border:1.5px dashed var(--line);
+        background:#fff;color:var(--muted);padding:8px 14px;border-radius:999px;font-weight:700;font-size:13px">+ New / Manage</button>
+    </div>
+  </div>`;
+}
+function openGroupManager(){
+  openModal('Manage Groups',`
+    <label class="fld">Create new group</label>
+    <div style="display:flex;gap:8px">
+      <input class="inp" id="ng_name" placeholder="e.g. Class 8B, Evening Batch" style="flex:1">
+      <button class="btn sm" style="width:auto" onclick="doAddGroup()">+ Add</button>
+    </div>
+    <div class="section-t" style="margin-top:18px">Existing groups</div>
+    <div class="lst">
+      ${GROUPS.map(g=>`<div class="item">
+        <div class="av">${g.icon}</div>
+        <div class="nm"><b>${g.name}</b><small>${(DB.students.filter(s=>(s.group_id||'class7a')===g.id&&s.active!==false)).length} students</small></div>
+        <button class="btn ghost sm" onclick="doRenameGroup('${g.id}')">✎</button>
+        <button class="btn danger sm" onclick="deleteGroup('${g.id}')">✕</button>
+      </div>`).join('')}
+    </div>
+    <button class="btn ghost" style="margin-top:16px" onclick="closeModal()">Close</button>`);
+  setTimeout(()=>document.getElementById('ng_name')?.focus(),100);
+}
+function doAddGroup(){
+  const v=document.getElementById('ng_name').value;
+  if(!v.trim()){toast('Enter a group name');return;}
+  addGroup(v);closeModal();
+}
+function doRenameGroup(id){
+  const g=GROUPS.find(x=>x.id===id);
+  const nv=prompt('New name for this group:',g.name);
+  if(nv&&nv.trim())renameGroup(id,nv);
+}
+function switchGroup(id){curGroup=id;renderAdmin();}
+function withGroupBar(){
+  const app=document.getElementById('app');
+  app.insertAdjacentHTML('afterbegin',groupBarHTML());
+}
 function renderAdmin(){
   document.getElementById('sub').textContent="Teacher dashboard";
   ({students:renderStudentsTab,reading:renderReadingTab,readrep:renderReadingReportTab,meet:renderMeetTab,
@@ -430,9 +536,12 @@ function renderStudentsTab(){
   const s=activeStudents();
   document.getElementById('app').innerHTML=`
    <div class="card">
-     <div style="display:flex;justify-content:space-between;align-items:center">
+     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
        <h3>Students <span style="color:var(--muted);font-weight:600;font-size:14px">(${s.length}/${MAX_STUDENTS})</span></h3>
-       <button class="btn sm" style="width:auto" onclick="addStudent()" ${s.length>=MAX_STUDENTS?'disabled':''}>+ Add</button>
+       <div style="display:flex;gap:6px">
+         <button class="btn ghost sm" style="width:auto" onclick="openBulkAdd()">📋 Paste list</button>
+         <button class="btn sm" style="width:auto" onclick="addStudent()" ${s.length>=MAX_STUDENTS?'disabled':''}>+ Add</button>
+       </div>
      </div>
      <div class="lst" style="margin-top:14px">
        ${s.length?s.map(x=>`<div class="item">
@@ -440,13 +549,14 @@ function renderStudentsTab(){
          <div class="nm"><b>${x.name}</b><small>Roll ${x.roll} · 🔥${readingStreak(x.roll)} streak</small></div>
          <button class="btn ghost sm" onclick="addStudent(${x.roll})">✎</button>
          <button class="btn danger sm" onclick="rmStudent(${x.roll})">✕</button>
-       </div>`).join(''):'<div class="empty"><div class="ic">👥</div><p>Add students — "+ Add"</p></div>'}
+       </div>`).join(''):'<div class="empty"><div class="ic">👥</div><p>Add students — "+ Add" or "📋 Paste list"</p></div>'}
      </div>
    </div>`;
+  withGroupBar();
 }
 function addStudent(roll){
   const ex=roll?DB.students.find(s=>s.roll==roll):null;
-  const nextRoll=ex?ex.roll:(Math.max(0,...DB.students.map(s=>+s.roll))+1);
+  const nextRoll=ex?ex.roll:(Math.max(0,...activeStudents().map(s=>+s.roll))+1);
   openModal(`${ex?'Edit':'Add'} Student`,`
     <label class="fld">Roll no.</label>
     <input class="inp" id="m_roll" type="number" value="${nextRoll}" ${ex?'readonly':''}>
@@ -455,10 +565,51 @@ function addStudent(roll){
     <button class="btn" style="margin-top:16px" onclick="saveStudent(${ex?ex.roll:'null'})">Save</button>`);
   setTimeout(()=>document.getElementById('m_name').focus(),100);
 }
+
+function openBulkAdd(){
+  openModal('Paste student list',`
+    <p style="font-size:13px;color:var(--muted);margin:0 0 10px">Paste names — one per line. Bullets (*, -), numbers (1. 2.), and extra blank lines are auto-cleaned. Roll numbers continue automatically.</p>
+    <textarea class="inp" id="bulk_txt" rows="10" style="resize:vertical;font-family:inherit;line-height:1.6"
+      placeholder="ABDU SAMAD PP&#10;MUHAMMED NABIH KP&#10;MUHAMMED ANSIF&#10;..."></textarea>
+    <div id="bulk_preview" style="margin-top:10px;font-size:13px;color:var(--muted)"></div>
+    <button class="btn" style="margin-top:14px" onclick="doBulkAdd()">+ Add all to ${groupNameOf(curGroup)}</button>`);
+  setTimeout(()=>{
+    const ta=document.getElementById('bulk_txt');
+    ta.focus();
+    ta.addEventListener('input',updateBulkPreview);
+  },100);
+}
+function groupNameOf(id){return (GROUPS.find(g=>g.id===id)||{}).name||id;}
+function parseBulkNames(raw){
+  return raw.split('\n')
+    .map(l=>l.replace(/^[\s*•\-–—]+/,'').replace(/^\d+[\.\)]\s*/,'').trim())
+    .filter(l=>l.length>0 && !/^please include/i.test(l) && !/^\*+$/.test(l));
+}
+function updateBulkPreview(){
+  const names=parseBulkNames(document.getElementById('bulk_txt').value);
+  document.getElementById('bulk_preview').textContent=
+    names.length?`${names.length} name(s) detected — ready to add.`:'';
+}
+async function doBulkAdd(){
+  const names=parseBulkNames(document.getElementById('bulk_txt').value);
+  if(!names.length){toast('Paste some names first');return;}
+  const existing=activeStudents();
+  const existingNames=new Set(existing.map(s=>s.name.trim().toUpperCase()));
+  let nextRoll=Math.max(0,...DB.students.filter(s=>(s.group_id||'class7a')===curGroup).map(s=>+s.roll))+1;
+  let added=0, skipped=0;
+  for(const name of names){
+    if(existingNames.has(name.toUpperCase())){skipped++;continue;}
+    await up('students',{roll:nextRoll,name,active:true},['roll']);
+    existingNames.add(name.toUpperCase());
+    nextRoll++;added++;
+  }
+  closeModal();renderStudentsTab();
+  toast(`✓ ${added} added${skipped?`, ${skipped} duplicate(s) skipped`:''}`);
+}
 async function saveStudent(oldRoll){
   const roll=+document.getElementById('m_roll').value, name=document.getElementById('m_name').value.trim();
   if(!name){toast('Name required');return;}
-  if(oldRoll==null && DB.students.some(s=>s.roll==roll)){toast('Roll already exists');return;}
+  if(oldRoll==null && activeStudents().some(s=>s.roll==roll)){toast('Roll already exists');return;}
   await up('students',{roll,name,active:true},['roll']);
   closeModal();renderStudentsTab();toast('Saved ✓');
 }
@@ -469,7 +620,7 @@ async function rmStudent(roll){
 
 /* ---- READING (admin view/correct) — morning + evening ---- */
 let readDate=todayStr();
-function getR(roll,d,session){return DB.reading.find(x=>x.roll==roll&&x.d===d&&x.session===session);}
+function getR(roll,d,session){return gReading().find(x=>x.roll==roll&&x.d===d&&x.session===session);}
 function renderReadingTab(){
   const s=activeStudents();
   const rows=s.map(st=>{
@@ -513,7 +664,7 @@ function renderReadingTab(){
    <div class="card">
      <div class="section-t" style="margin-top:0">🏆 Reading leaderboard (streak)</div>
      <div class="lst">
-       ${[...s].map(st=>({st,sk:readingStreak(st.roll),tot:DB.reading.filter(x=>x.roll==st.roll).reduce((a,b)=>a+(+b.minutes||0),0)}))
+       ${[...s].map(st=>({st,sk:readingStreak(st.roll),tot:gReading().filter(x=>x.roll==st.roll).reduce((a,b)=>a+(+b.minutes||0),0)}))
          .sort((a,b)=>b.sk-a.sk||b.tot-a.tot).slice(0,10).map((o,i)=>`<div class="item">
          <div class="av" style="background:${i<3?'#fff5e6':'var(--soft)'}">${['🥇','🥈','🥉'][i]||i+1}</div>
          <div class="nm"><b>${o.st.name}</b><small>${o.tot} min total</small></div>
@@ -521,6 +672,7 @@ function renderReadingTab(){
        </div>`).join('')}
      </div>
    </div>`;
+  withGroupBar();
 }
 async function setReading(roll,session,val){
   await up('reading',{roll:+roll,d:readDate,session,minutes:val===''?0:+val},['roll','d','session']);
@@ -545,11 +697,11 @@ function fmtShort(s){const d=new Date(s+'T00:00');return d.toLocaleDateString('e
 function hm(min){if(!min)return '—';const h=Math.floor(min/60),m=min%60;return h>0?`${h}h ${m}m`:`${m}m`;}
 
 function sumFor(roll,startD,endD,session){
-  return DB.reading.filter(r=>r.roll==roll && r.d>=startD && r.d<=endD &&
+  return gReading().filter(r=>r.roll==roll && r.d>=startD && r.d<=endD &&
      (session?r.session===session:true)).reduce((a,b)=>a+(+b.minutes||0),0);
 }
 function daysActiveFor(roll,startD,endD){
-  return new Set(DB.reading.filter(r=>r.roll==roll && r.d>=startD && r.d<=endD && r.minutes>0).map(r=>r.d)).size;
+  return new Set(gReading().filter(r=>r.roll==roll && r.d>=startD && r.d<=endD && r.minutes>0).map(r=>r.d)).size;
 }
 
 function renderReadingReportTab(){
@@ -562,7 +714,7 @@ function renderReadingReportTab(){
   else if(repView==='monthly'){startD=repMonth+'-01';const last=new Date(+repMonth.slice(0,4),+repMonth.slice(5,7),0).getDate();
     endD=repMonth+'-'+String(last).padStart(2,'0');
     label=new Date(repMonth+'-01').toLocaleDateString('en-GB',{month:'long',year:'numeric'});}
-  else {const all=DB.reading.map(r=>r.d).sort();startD=all[0]||todayStr();endD=todayStr();label='All-time (overall)';}
+  else {const all=gReading().map(r=>r.d).sort();startD=all[0]||todayStr();endD=todayStr();label='All-time (overall)';}
 
   const rows=s.map(st=>{
     const m=sumFor(st.roll,startD,endD,'morning');
@@ -574,6 +726,13 @@ function renderReadingReportTab(){
   const classTotal=rows.reduce((a,b)=>a+b.tot,0);
   const classAvg=rows.length?Math.round(classTotal/rows.length):0;
   const activeCount=rows.filter(r=>r.tot>0).length;
+
+  // ---- trend data: last 7 days (daily/weekly) or last 30 days (monthly/overall) ----
+  const trendDays=(repView==='monthly'||repView==='overall')?30:7;
+  const trendDates=[...Array(trendDays).keys()].map(i=>{
+    const d=new Date();d.setDate(d.getDate()-(trendDays-1-i));return d.toISOString().slice(0,10);
+  });
+  const trendVals=trendDates.map(d=>gReading().filter(r=>r.d===d).reduce((a,b)=>a+(+b.minutes||0),0));
 
   document.getElementById('app').innerHTML=`
    <div class="card">
@@ -592,7 +751,7 @@ function renderReadingReportTab(){
      ${repView==='monthly'?`<label class="fld" style="margin-top:14px">Month</label>
         <input class="inp" type="month" value="${repMonth}" onchange="repMonth=this.value;renderReadingReportTab()">`:''}
 
-     <div style="text-align:center;margin-top:14px;color:var(--muted);font-weight:600">${label}</div>
+     <div style="text-align:center;margin-top:14px;color:var(--muted);font-weight:600">${label} · ${groupNameOf(curGroup)}</div>
 
      <div class="stat-grid" style="margin-top:12px">
        <div class="stat"><div class="v">${activeCount}/${s.length}</div><div class="l">Students read</div></div>
@@ -601,6 +760,16 @@ function renderReadingReportTab(){
        <div class="stat evening"><div class="v">${hm(rows.reduce((a,b)=>a+b.e,0))}</div><div class="l">🌙 Evening total</div></div>
      </div>
      <div class="stat hot" style="margin-top:10px"><div class="v">${hm(classAvg)}</div><div class="l">Avg / student (this period)</div></div>
+   </div>
+
+   <div class="card">
+     <div class="section-t" style="margin-top:0">📊 Student-wise minutes</div>
+     ${barChartSVG(rows)}
+   </div>
+
+   <div class="card">
+     <div class="section-t" style="margin-top:0">📈 Last ${trendDays} days — class total trend</div>
+     ${trendChartSVG(trendDates,trendVals)}
    </div>
 
    <div class="card">
@@ -620,15 +789,87 @@ function renderReadingReportTab(){
    </div>
 
    <div class="card no-print">
-     <button class="btn ghost" onclick="window.print()">🖨️ Print this report</button>
+     <div class="row">
+       <button class="btn" style="background:#25D366;box-shadow:0 4px 14px rgba(37,211,102,.3)" onclick="shareReportWhatsApp()">📤 Share on WhatsApp</button>
+       <button class="btn ghost" onclick="window.print()">🖨️ Print</button>
+     </div>
    </div>`;
+  withGroupBar();
+  _lastReportData={label,rows:rows.map(r=>({name:r.st.name,m:r.m,e:r.e,tot:r.tot})),classTotal,classAvg,activeCount,total:s.length};
+}
+
+/* ---- Bar chart: student-wise total minutes (SVG, self-contained) ---- */
+function barChartSVG(rows){
+  const top=rows.slice(0,15); // cap for readability
+  if(!top.length||top.every(r=>r.tot===0))return `<p style="color:var(--muted);font-size:13px;text-align:center;padding:20px 0">No reading data yet for this period.</p>`;
+  const max=Math.max(...top.map(r=>r.tot),1);
+  const rowH=30, gap=8, leftW=110, chartW=300, padTop=6;
+  const h=top.length*(rowH+gap)+padTop;
+  const bars=top.map((r,i)=>{
+    const y=padTop+i*(rowH+gap);
+    const w=Math.max(2,(r.tot/max)*chartW);
+    const color=i===0?'#15786b':(i===1?'#2563eb':(i===2?'#f59e0b':'#94a3b8'));
+    const nm=r.st.name.length>14?r.st.name.slice(0,13)+'…':r.st.name;
+    return `<text x="${leftW-8}" y="${y+rowH/2+4}" text-anchor="end" font-size="11" fill="#1b2030" font-weight="600">${nm}</text>
+      <rect x="${leftW}" y="${y}" width="${chartW}" height="${rowH}" rx="6" fill="#eef3f1"/>
+      <rect x="${leftW}" y="${y}" width="${w}" height="${rowH}" rx="6" fill="${color}"/>
+      <text x="${leftW+w+6}" y="${y+rowH/2+4}" font-size="11" fill="#697086" font-weight="700">${hm(r.tot)}</text>`;
+  }).join('');
+  return `<svg viewBox="0 0 ${leftW+chartW+60} ${h}" style="width:100%;height:auto;font-family:inherit">${bars}</svg>`;
+}
+
+/* ---- Trend chart: daily class totals over time (SVG line) ---- */
+function trendChartSVG(dates,vals){
+  const w=320,h=140,padL=34,padB=22,padT=10,padR=10;
+  const max=Math.max(...vals,1);
+  const innerW=w-padL-padR, innerH=h-padT-padB;
+  const stepX=vals.length>1?innerW/(vals.length-1):0;
+  const pts=vals.map((v,i)=>[padL+i*stepX, padT+innerH-(v/max)*innerH]);
+  const path=pts.map((p,i)=>(i===0?'M':'L')+p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
+  const areaPath=path+` L${pts[pts.length-1][0].toFixed(1)},${padT+innerH} L${pts[0][0].toFixed(1)},${padT+innerH} Z`;
+  const gridLines=[0,0.5,1].map(f=>{
+    const y=padT+innerH-f*innerH;
+    return `<line x1="${padL}" y1="${y}" x2="${w-padR}" y2="${y}" stroke="#e7e6df" stroke-width="1"/>
+      <text x="${padL-6}" y="${y+3}" text-anchor="end" font-size="9" fill="#697086">${Math.round(f*max)}</text>`;
+  }).join('');
+  // show every nth date label to avoid crowding
+  const labelEvery=Math.ceil(vals.length/6);
+  const xLabels=pts.map((p,i)=>i%labelEvery===0?`<text x="${p[0].toFixed(1)}" y="${h-4}" text-anchor="middle" font-size="9" fill="#697086">${fmtShort(dates[i])}</text>`:'').join('');
+  const dots=pts.map((p,i)=>`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3" fill="#15786b"/>`).join('');
+  return `<svg viewBox="0 0 ${w} ${h}" style="width:100%;height:auto;font-family:inherit">
+    ${gridLines}
+    <path d="${areaPath}" fill="#15786b" opacity="0.08"/>
+    <path d="${path}" fill="none" stroke="#15786b" stroke-width="2.5"/>
+    ${dots}${xLabels}
+  </svg>`;
+}
+
+/* ---- WhatsApp share: build a readable text summary and open wa.me ---- */
+let _lastReportData=null;
+function shareReportWhatsApp(){
+  const data=_lastReportData;
+  if(!data)return;
+  const lines=[];
+  lines.push(`📚 *Reading Report — ${groupNameOf(curGroup)}*`);
+  lines.push(`🗓️ ${data.label}`);
+  lines.push('');
+  lines.push(`✅ Students read: ${data.activeCount}/${data.total}`);
+  lines.push(`⏱️ Class total: ${hm(data.classTotal)}`);
+  lines.push(`📊 Average: ${hm(data.classAvg)}`);
+  lines.push('');
+  lines.push('*Top readers:*');
+  data.rows.slice(0,10).forEach((r,i)=>{
+    if(r.tot>0)lines.push(`${i+1}. ${r.name} — ${hm(r.tot)}`);
+  });
+  const text=encodeURIComponent(lines.join('\n'));
+  window.open(`https://wa.me/?text=${text}`,'_blank');
 }
 
 /* ---- MEET ATTENDANCE ---- */
 let meetDate=todayStr();
 function renderMeetTab(){
   const s=activeStudents();
-  const get=(roll)=>DB.attendance.find(a=>a.roll==roll&&a.d===meetDate)?.status||null;
+  const get=(roll)=>gAttendance().find(a=>a.roll==roll&&a.d===meetDate)?.status||null;
   const cnt=(st)=>s.filter(x=>get(x.roll)===st).length;
   document.getElementById('app').innerHTML=`
    <div class="card">
@@ -658,6 +899,7 @@ function renderMeetTab(){
        </div>`;}).join('')}
      </div>
    </div>`;
+  withGroupBar();
 }
 async function setAtt(roll,status){await up('attendance',{roll:+roll,d:meetDate,status},['roll','d']);renderMeetTab();}
 async function bulkMark(status){
@@ -671,7 +913,7 @@ async function bulkMark(status){
 /* ---- EXAMS ---- */
 let curExam=null;
 function renderExamsTab(){
-  const ex=[...DB.exams].sort((a,b)=>(b.d||'').localeCompare(a.d||''));
+  const ex=[...gExams()].sort((a,b)=>(b.d||'').localeCompare(a.d||''));
   if(curExam){renderExamMarks();return;}
   document.getElementById('app').innerHTML=`
    <div class="card">
@@ -686,6 +928,7 @@ function renderExamsTab(){
        </div>`;}).join(''):'<div class="empty"><div class="ic">📝</div><p>Create an exam</p></div>'}
      </div>
    </div>`;
+  withGroupBar();
 }
 function newExam(){
   openModal('New exam',`
@@ -706,7 +949,7 @@ async function saveExam(){
   closeModal();renderExamsTab();
 }
 function renderExamMarks(){
-  const e=DB.exams.find(x=>x.id==curExam);const s=activeStudents();
+  const e=gExams().find(x=>x.id==curExam);const s=activeStudents();
   document.getElementById('app').innerHTML=`
    <div class="card">
      <button class="btn ghost sm" onclick="curExam=null;renderExamsTab()">← Back</button>
@@ -726,6 +969,7 @@ function renderExamMarks(){
        </div>`;}).join('')}
      </div>
    </div>`;
+  withGroupBar();
 }
 async function setExamMark(eid,roll,val){
   await up('exam_marks',{exam_id:+eid,roll:+roll,marks:val===''?null:+val},['exam_id','roll']);
@@ -739,7 +983,7 @@ async function rmExam(id){if(!confirm('Delete exam + its marks?'))return;
 let curAsg=null;
 function renderAssignTab(){
   if(curAsg){renderAsgMarks();return;}
-  const a=[...DB.assignments].sort((x,y)=>(y.due||'').localeCompare(x.due||''));
+  const a=[...gAssignments()].sort((x,y)=>(y.due||'').localeCompare(x.due||''));
   document.getElementById('app').innerHTML=`
    <div class="card">
      <div style="display:flex;justify-content:space-between;align-items:center">
@@ -754,6 +998,7 @@ function renderAssignTab(){
        </div>`;}).join(''):'<div class="empty"><div class="ic">📋</div><p>Create an assignment</p></div>'}
      </div>
    </div>`;
+  withGroupBar();
 }
 function newAsg(){
   openModal('New assignment',`
@@ -772,7 +1017,7 @@ async function saveAsg(){
   closeModal();renderAssignTab();
 }
 function renderAsgMarks(){
-  const t=DB.assignments.find(x=>x.id==curAsg);const s=activeStudents();
+  const t=gAssignments().find(x=>x.id==curAsg);const s=activeStudents();
   document.getElementById('app').innerHTML=`
    <div class="card">
      <button class="btn ghost sm" onclick="curAsg=null;renderAssignTab()">← Back</button>
@@ -792,6 +1037,7 @@ function renderAsgMarks(){
        </div>`;}).join('')}
      </div>
    </div>`;
+  withGroupBar();
 }
 async function toggleSub(aid,roll){
   const m=DB.assign_marks.find(x=>x.aid==aid&&x.roll==roll);
@@ -813,26 +1059,26 @@ async function rmAsg(id){if(!confirm('Delete assignment?'))return;
    PERFORMANCE / REPORT
    ============================================================ */
 function perfOf(roll){
-  const rd=DB.reading.filter(r=>r.roll==roll);
+  const rd=gReading().filter(r=>r.roll==roll);
   const readMin=rd.reduce((a,b)=>a+(+b.minutes||0),0);
   const readDays=rd.filter(r=>r.minutes>0).length;
-  const sessions=[...new Set(DB.attendance.map(a=>a.d))];
-  const myAtt=DB.attendance.filter(a=>a.roll==roll);
+  const sessions=[...new Set(gAttendance().map(a=>a.d))];
+  const myAtt=gAttendance().filter(a=>a.roll==roll);
   const present=myAtt.filter(a=>a.status==='present').length;
   const late=myAtt.filter(a=>a.status==='late').length;
   const attPct=sessions.length?Math.round((present+late*0.5)/sessions.length*100):null;
   // exams
   let ePctArr=[];
-  DB.exams.forEach(e=>{const m=DB.exam_marks.find(x=>x.exam_id==e.id&&x.roll==roll);
+  gExams().forEach(e=>{const m=DB.exam_marks.find(x=>x.exam_id==e.id&&x.roll==roll);
     if(m&&m.marks!=null)ePctArr.push(m.marks/e.max*100);});
   const examPct=ePctArr.length?Math.round(ePctArr.reduce((a,b)=>a+b)/ePctArr.length):null;
   // assignments
   let aPctArr=[],subC=0;
-  DB.assignments.forEach(t=>{const m=DB.assign_marks.find(x=>x.aid==t.id&&x.roll==roll);
+  gAssignments().forEach(t=>{const m=DB.assign_marks.find(x=>x.aid==t.id&&x.roll==roll);
     if(m&&m.status==='submitted')subC++;
     if(m&&m.marks!=null)aPctArr.push(m.marks/t.max*100);});
   const asgPct=aPctArr.length?Math.round(aPctArr.reduce((a,b)=>a+b)/aPctArr.length):null;
-  const asgRate=DB.assignments.length?Math.round(subC/DB.assignments.length*100):null;
+  const asgRate=gAssignments().length?Math.round(subC/gAssignments().length*100):null;
   // overall = avg of available components
   const comp=[attPct,examPct,asgPct].filter(v=>v!=null);
   const overall=comp.length?Math.round(comp.reduce((a,b)=>a+b)/comp.length):null;
@@ -867,6 +1113,7 @@ function renderPerfTab(){
        </tbody>
      </table></div>
    </div>`;
+  withGroupBar();
 }
 function showReport(roll){
   const st=DB.students.find(s=>s.roll==roll);const p=perfOf(roll);
@@ -885,11 +1132,11 @@ function showReport(roll){
       <div class="stat"><div class="v">${p.attPct!=null?p.attPct+'%':'—'}</div><div class="l">Meet attendance (${p.present}/${p.sessions})</div></div>
       <div class="stat"><div class="v">${p.examPct!=null?p.examPct+'%':'—'}</div><div class="l">Exam average</div></div>
       <div class="stat"><div class="v">${p.asgPct!=null?p.asgPct+'%':'—'}</div><div class="l">Assignment marks</div></div>
-      <div class="stat"><div class="v">${p.asgRate!=null?p.asgRate+'%':'—'}</div><div class="l">Submitted (${p.subC}/${DB.assignments.length})</div></div>
+      <div class="stat"><div class="v">${p.asgRate!=null?p.asgRate+'%':'—'}</div><div class="l">Submitted (${p.subC}/${gAssignments().length})</div></div>
     </div>
     <div class="section-t">Exam-wise</div>
     <div class="scroll"><table class="tbl"><tbody>
-      ${DB.exams.map(e=>{const m=DB.exam_marks.find(x=>x.exam_id==e.id&&x.roll==roll);
+      ${gExams().map(e=>{const m=DB.exam_marks.find(x=>x.exam_id==e.id&&x.roll==roll);
         return `<tr><td>${e.name}<br><small style="color:var(--muted)">${e.subject||''}</small></td>
         <td class="c">${m&&m.marks!=null?m.marks+'/'+e.max:'—'}</td>
         <td class="c">${m&&m.marks!=null?gradeBadge(Math.round(m.marks/e.max*100)):'—'}</td></tr>`;}).join('')
