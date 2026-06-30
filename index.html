@@ -42,7 +42,10 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
 .btn.amber{background:var(--accent);box-shadow:0 4px 14px rgba(245,158,11,.25)}
 .btn.blue{background:var(--blue);box-shadow:0 4px 14px rgba(37,99,235,.25)}
 .btn:disabled{opacity:.45;pointer-events:none}
-.minus,.plus{width:48px;height:48px;border-radius:12px;border:1.5px solid var(--line);background:#fff;font-size:22px;font-weight:700;color:var(--primary);display:grid;place-items:center}
+.hm-row{display:flex;align-items:center;justify-content:center;gap:18px}
+.hm-box{display:flex;flex-direction:column;align-items:center;gap:4px}
+.hm-sel{width:84px;text-align:center;font-size:20px;font-weight:700;padding:12px 8px;font-family:"Baloo Chettan 2"}
+.hm-lbl{font-size:12px;color:var(--muted);font-weight:600}
 .seg{display:flex;background:var(--soft);border-radius:12px;padding:4px;gap:4px}
 .seg button{flex:1;border:none;background:none;padding:9px;border-radius:9px;font-weight:600;font-size:13px;color:var(--muted)}
 .section-t{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin:0 0 8px}
@@ -207,41 +210,49 @@ function render(){
     <!-- MORNING -->
     <div class="session-box morning">
       <div class="session-title">🌅 Morning Reading</div>
-      <div style="display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:12px">
-        <button class="minus" onclick="step('morning',-5)">−</button>
-        <div style="text-align:center">
-          <span id="mVal" style="font-family:'Baloo Chettan 2';font-size:44px;font-weight:700">${tmpMin.morning}</span>
-          <div style="color:var(--muted);font-size:13px">minutes</div>
+      <div class="hm-row">
+        <div class="hm-box">
+          <select class="inp hm-sel" id="mH" onchange="setHM('morning','h',this.value)">
+            ${[...Array(13).keys()].map(h=>`<option value="${h}" ${Math.floor(tmpMin.morning/60)==h?'selected':''}>${h}</option>`).join('')}
+          </select>
+          <span class="hm-lbl">hr</span>
         </div>
-        <button class="plus" onclick="step('morning',5)">+</button>
+        <div class="hm-box">
+          <select class="inp hm-sel" id="mM" onchange="setHM('morning','m',this.value)">
+            ${[0,5,10,15,20,25,30,35,40,45,50,55].map(m=>`<option value="${m}" ${tmpMin.morning%60==m?'selected':''}>${m}</option>`).join('')}
+          </select>
+          <span class="hm-lbl">min</span>
+        </div>
       </div>
-      <div class="seg" style="margin-bottom:12px">
-        ${[15,30,45,60].map(v=>`<button onclick="setMin('morning',${v})">${v}</button>`).join('')}
-      </div>
+      <div style="text-align:center;color:var(--muted);font-size:13px;margin:8px 0 12px">= ${tmpMin.morning} minutes</div>
       <button class="btn amber" ${locked?'disabled':''} onclick="submit('morning')">
         ${mEntry&&mEntry.minutes>0?'✓ Update morning':'☀️ Save morning reading'}
       </button>
-      ${mEntry&&mEntry.minutes>0?`<div style="text-align:center;margin-top:8px;color:#d97706;font-size:13px;font-weight:600">✓ Saved: ${mEntry.minutes} min</div>`:''}
+      ${mEntry&&mEntry.minutes>0?`<div style="text-align:center;margin-top:8px;color:#d97706;font-size:13px;font-weight:600">✓ Saved: ${Math.floor(mEntry.minutes/60)}h ${mEntry.minutes%60}m</div>`:''}
     </div>
 
     <!-- EVENING -->
     <div class="session-box evening" style="margin-top:12px">
       <div class="session-title">🌙 Evening Reading</div>
-      <div style="display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:12px">
-        <button class="minus" onclick="step('evening',-5)">−</button>
-        <div style="text-align:center">
-          <span id="eVal" style="font-family:'Baloo Chettan 2';font-size:44px;font-weight:700">${tmpMin.evening}</span>
-          <div style="color:var(--muted);font-size:13px">minutes</div>
+      <div class="hm-row">
+        <div class="hm-box">
+          <select class="inp hm-sel" id="eH" onchange="setHM('evening','h',this.value)">
+            ${[...Array(13).keys()].map(h=>`<option value="${h}" ${Math.floor(tmpMin.evening/60)==h?'selected':''}>${h}</option>`).join('')}
+          </select>
+          <span class="hm-lbl">hr</span>
         </div>
-        <button class="plus" onclick="step('evening',5)">+</button>
+        <div class="hm-box">
+          <select class="inp hm-sel" id="eM" onchange="setHM('evening','m',this.value)">
+            ${[0,5,10,15,20,25,30,35,40,45,50,55].map(m=>`<option value="${m}" ${tmpMin.evening%60==m?'selected':''}>${m}</option>`).join('')}
+          </select>
+          <span class="hm-lbl">min</span>
+        </div>
       </div>
-      <div class="seg" style="margin-bottom:12px">
-        ${[15,30,45,60].map(v=>`<button onclick="setMin('evening',${v})">${v}</button>`).join('')}
-      </div>
+      <div style="text-align:center;color:var(--muted);font-size:13px;margin:8px 0 12px">= ${tmpMin.evening} minutes</div>
       <button class="btn blue" ${locked?'disabled':''} onclick="submit('evening')">
         ${eEntry&&eEntry.minutes>0?'✓ Update evening':'🌙 Save evening reading'}
       </button>
-      ${eEntry&&eEntry.minutes>0?`<div style="text-align:center;margin-top:8px;color:var(--blue);font-size:13px;font-weight:600">✓ Saved: ${eEntry.minutes} min</div>`:''}
+      ${eEntry&&eEntry.minutes>0?`<div style="text-align:center;margin-top:8px;color:var(--blue);font-size:13px;font-weight:600">✓ Saved: ${Math.floor(eEntry.minutes/60)}h ${eEntry.minutes%60}m</div>`:''}
     </div>
 
     <!-- STATS -->
@@ -270,13 +281,12 @@ function render(){
   </div>`;
 }
 
-function step(session,d){
-  tmpMin[session]=Math.max(0,Math.min(600,(tmpMin[session]||0)+d));
-  document.getElementById(session==='morning'?'mVal':'eVal').textContent=tmpMin[session];
-}
-function setMin(session,v){
-  tmpMin[session]=v;
-  document.getElementById(session==='morning'?'mVal':'eVal').textContent=v;
+function setHM(session,unit,val){
+  const cur=tmpMin[session]||0;
+  const h=Math.floor(cur/60), m=cur%60;
+  if(unit==='h')tmpMin[session]=(+val)*60+m;
+  else tmpMin[session]=h*60+(+val);
+  render();
 }
 async function submit(session){
   if(!studentName){toast('Please select your name');return;}

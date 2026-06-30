@@ -542,6 +542,7 @@ function dateRangeWeek(anyDateStr){
   return [start.toISOString().slice(0,10), end.toISOString().slice(0,10)];
 }
 function fmtShort(s){const d=new Date(s+'T00:00');return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short'});}
+function hm(min){if(!min)return '—';const h=Math.floor(min/60),m=min%60;return h>0?`${h}h ${m}m`:`${m}m`;}
 
 function sumFor(roll,startD,endD,session){
   return DB.reading.filter(r=>r.roll==roll && r.d>=startD && r.d<=endD &&
@@ -595,11 +596,11 @@ function renderReadingReportTab(){
 
      <div class="stat-grid" style="margin-top:12px">
        <div class="stat"><div class="v">${activeCount}/${s.length}</div><div class="l">Students read</div></div>
-       <div class="stat"><div class="v">${classTotal}</div><div class="l">Class total min</div></div>
-       <div class="stat morning"><div class="v">${rows.reduce((a,b)=>a+b.m,0)}</div><div class="l">🌅 Morning total</div></div>
-       <div class="stat evening"><div class="v">${rows.reduce((a,b)=>a+b.e,0)}</div><div class="l">🌙 Evening total</div></div>
+       <div class="stat"><div class="v">${hm(classTotal)}</div><div class="l">Class total</div></div>
+       <div class="stat morning"><div class="v">${hm(rows.reduce((a,b)=>a+b.m,0))}</div><div class="l">🌅 Morning total</div></div>
+       <div class="stat evening"><div class="v">${hm(rows.reduce((a,b)=>a+b.e,0))}</div><div class="l">🌙 Evening total</div></div>
      </div>
-     <div class="stat hot" style="margin-top:10px"><div class="v">${classAvg}</div><div class="l">Avg minutes / student (this period)</div></div>
+     <div class="stat hot" style="margin-top:10px"><div class="v">${hm(classAvg)}</div><div class="l">Avg / student (this period)</div></div>
    </div>
 
    <div class="card">
@@ -609,9 +610,9 @@ function renderReadingReportTab(){
        <tbody>
        ${rows.map(r=>`<tr>
          <td>${r.st.name}</td>
-         <td class="c">${r.m||'—'}</td>
-         <td class="c">${r.e||'—'}</td>
-         <td class="c"><b>${r.tot||'—'}</b></td>
+         <td class="c">${hm(r.m)}</td>
+         <td class="c">${hm(r.e)}</td>
+         <td class="c"><b>${hm(r.tot)}</b></td>
          ${repView!=='daily'?`<td class="c">${r.days}</td>`:''}
        </tr>`).join('')}
        </tbody>
