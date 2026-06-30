@@ -48,6 +48,7 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
 .hm-lbl{font-size:12px;color:var(--muted);font-weight:600}
 .seg{display:flex;background:var(--soft);border-radius:12px;padding:4px;gap:4px}
 .seg button{flex:1;border:none;background:none;padding:9px;border-radius:9px;font-weight:600;font-size:13px;color:var(--muted)}
+.seg button.on{background:#fff;color:var(--primary-d);box-shadow:0 1px 4px rgba(0,0,0,.08)}
 .section-t{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin:0 0 8px}
 .stat{background:var(--soft);border-radius:13px;padding:13px;text-align:center}
 .stat .v{font-family:"Baloo Chettan 2";font-size:26px;font-weight:700;line-height:1}
@@ -67,6 +68,7 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
 .session-box.evening{border-color:#93c5fd;background:#f0f7ff}
 .session-title{font-weight:700;font-size:15px;margin-bottom:10px;display:flex;align-items:center;gap:6px}
 .lock-msg{background:#fdecea;color:#c0392b;border-radius:10px;padding:10px 14px;font-size:13px;font-weight:600;text-align:center;margin-top:10px}
+.grp-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;background:rgba(255,255,255,.18);color:#fff;font-size:12px;font-weight:700}
 </style>
 </head>
 <body>
@@ -81,55 +83,72 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
 const SUPABASE_URL  = "https://fomgindrntvtyycdwmhh.supabase.co";
 const SUPABASE_ANON = "sb_publishable_NhpX4lRHgeEaSQNhwVie5A_tmhKPkkc";
 
-const PRESET_STUDENTS=[
-  {roll:1,name:"ABDU SAMAD PP",active:true},
-  {roll:2,name:"MUHAMMED NABIH KP",active:true},
-  {roll:3,name:"MUHAMMED ANSIF",active:true},
-  {roll:4,name:"FATHIMA RAFNA K",active:true},
-  {roll:5,name:"AYSHA NASEEBA",active:true},
-  {roll:6,name:"ASWIN",active:true},
-  {roll:7,name:"AHAMMED SHAMIL K",active:true},
-  {roll:8,name:"ABHAY KRISHNA KK",active:true},
-  {roll:9,name:"RISHA FATHIMA",active:true},
-  {roll:10,name:"MUHAMMED HASIM KV",active:true},
-  {roll:11,name:"MIRSHA RASLAN",active:true},
-  {roll:12,name:"MUHAMMED MUZAMMIL KT",active:true},
-  {roll:13,name:"ADHITYAN T",active:true},
-  {roll:14,name:"RIYA P",active:true},
-  {roll:15,name:"ARJUN",active:true},
-  {roll:16,name:"MUHAMMED DANISH",active:true},
-  {roll:17,name:"SANA NAZRIN MK",active:true},
-  {roll:18,name:"ABHINAV KRISHNA K",active:true},
-  {roll:19,name:"ZAYAN K",active:true},
-  {roll:20,name:"FAHIS C",active:true},
-  {roll:21,name:"SABIN KRISHNA",active:true},
-  {roll:22,name:"ABHAY KRISHNA P",active:true},
-  {roll:23,name:"MUHAMMED FAHEEM K",active:true},
-  {roll:24,name:"FATHIMA AMNA K",active:true},
-  {roll:25,name:"MUHAMMED MISHAL",active:true},
-  {roll:26,name:"MUHAMMED RISHAL UP",active:true},
+/* ===== GROUPS (dynamic, pulled from Supabase 'groups' table) ===== */
+let GROUPS=[
+  {id:'class7a', name:'Class 7A', icon:'🏫'},
 ];
+const PRESET_STUDENTS={
+  class7a:[
+    {roll:1,name:"ABDU SAMAD PP",active:true},
+    {roll:2,name:"MUHAMMED NABIH KP",active:true},
+    {roll:3,name:"MUHAMMED ANSIF",active:true},
+    {roll:4,name:"FATHIMA RAFNA K",active:true},
+    {roll:5,name:"AYSHA NASEEBA",active:true},
+    {roll:6,name:"ASWIN",active:true},
+    {roll:7,name:"AHAMMED SHAMIL K",active:true},
+    {roll:8,name:"ABHAY KRISHNA KK",active:true},
+    {roll:9,name:"RISHA FATHIMA",active:true},
+    {roll:10,name:"MUHAMMED HASIM KV",active:true},
+    {roll:11,name:"MIRSHA RASLAN",active:true},
+    {roll:12,name:"MUHAMMED MUZAMMIL KT",active:true},
+    {roll:13,name:"ADHITYAN T",active:true},
+    {roll:14,name:"RIYA P",active:true},
+    {roll:15,name:"ARJUN",active:true},
+    {roll:16,name:"MUHAMMED DANISH",active:true},
+    {roll:17,name:"SANA NAZRIN MK",active:true},
+    {roll:18,name:"ABHINAV KRISHNA K",active:true},
+    {roll:19,name:"ZAYAN K",active:true},
+    {roll:20,name:"FAHIS C",active:true},
+    {roll:21,name:"SABIN KRISHNA",active:true},
+    {roll:22,name:"ABHAY KRISHNA P",active:true},
+    {roll:23,name:"MUHAMMED FAHEEM K",active:true},
+    {roll:24,name:"FATHIMA AMNA K",active:true},
+    {roll:25,name:"MUHAMMED MISHAL",active:true},
+    {roll:26,name:"MUHAMMED RISHAL UP",active:true},
+  ],
+};
 
 let sb=null,ONLINE=false;
-const LS="stReading_v2";
-let DB={students:[],reading:[]};
+const LS="stReading_v3";
+let DB={students:{},reading:[]}; // students keyed by group_id
+let curGroup=null;
 
 function loadLocal(){
   try{const d=JSON.parse(localStorage.getItem(LS));if(d)DB={...DB,...d};}catch(e){}
-  if(!DB.students.length){DB.students=PRESET_STUDENTS.map(s=>({...s}));}
+  try{const g=JSON.parse(localStorage.getItem(LS+'_groups'));if(g&&g.length)GROUPS=g;}catch(e){}
+  GROUPS.forEach(g=>{ if(!DB.students[g.id] || !DB.students[g.id].length){
+    DB.students[g.id]=(PRESET_STUDENTS[g.id]||[]).map(s=>({...s}));
+  }});
 }
 function saveLocal(){localStorage.setItem(LS,JSON.stringify(DB));}
+function saveGroupsLocal(){localStorage.setItem(LS+'_groups',JSON.stringify(GROUPS));}
 
 async function initDB(){
   loadLocal();
   if(SUPABASE_URL.startsWith("http")&&SUPABASE_ANON.length>20){
     try{
       sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON);
-      for(const t of ["students","reading"]){
-        const{data,error}=await sb.from(t).select("*");
-        if(!error&&data)DB[t]=data;
+      const{data:grps}=await sb.from('groups').select('*').order('created_at',{ascending:true});
+      if(grps&&grps.length){GROUPS=grps.map(g=>({id:g.id,name:g.name,icon:g.icon||'📘'}));saveGroupsLocal();}
+      const{data:studs}=await sb.from('students').select('*');
+      if(studs){
+        GROUPS.forEach(g=>{
+          const rows=studs.filter(s=>(s.group_id||'class7a')===g.id);
+          if(rows.length)DB.students[g.id]=rows;
+        });
       }
-      if(!DB.students.length)DB.students=PRESET_STUDENTS.map(s=>({...s}));
+      const{data:reads}=await sb.from('reading').select('*');
+      if(reads)DB.reading=reads;
       saveLocal();ONLINE=true;
     }catch(e){ONLINE=false;}
   }
@@ -139,26 +158,25 @@ async function initDB(){
 }
 
 async function upReading(roll,d,session,minutes){
-  const idx=DB.reading.findIndex(r=>r.roll==roll&&r.d===d&&r.session===session);
+  const idx=DB.reading.findIndex(r=>r.roll==roll&&r.d===d&&r.session===session&&r.group_id===curGroup);
   if(idx>=0)DB.reading[idx].minutes=minutes;
-  else DB.reading.push({roll,d,session,minutes});
+  else DB.reading.push({roll,d,session,minutes,group_id:curGroup});
   saveLocal();
   if(ONLINE){
-    try{await sb.from('reading').upsert({roll,d,session,minutes},{onConflict:"roll,d,session"});}
+    try{await sb.from('reading').upsert({roll,d,session,minutes,group_id:curGroup},{onConflict:"group_id,roll,d,session"});}
     catch(e){console.warn(e);}
   }
 }
 
 const todayStr=()=>new Date().toISOString().slice(0,10);
 const isLocked=()=>{const n=new Date();return n.getHours()===23&&n.getMinutes()===59;};
-const isPastMidnight=(d)=>d<todayStr();
-const activeStudents=()=>DB.students.filter(s=>s.active!==false).sort((a,b)=>a.roll-b.roll);
+const activeStudents=()=>(DB.students[curGroup]||[]).filter(s=>s.active!==false).sort((a,b)=>a.roll-b.roll);
 
 function getEntry(roll,d,session){
-  return DB.reading.find(r=>r.roll==roll&&r.d===d&&r.session===session);
+  return DB.reading.find(r=>r.roll==roll&&r.d===d&&r.session===session&&r.group_id===curGroup);
 }
 function readingStreak(roll){
-  const days=new Set(DB.reading.filter(r=>r.roll==roll&&r.minutes>0).map(r=>r.d));
+  const days=new Set(DB.reading.filter(r=>r.roll==roll&&r.group_id===curGroup&&r.minutes>0).map(r=>r.d));
   let s=0;const d=new Date();
   for(;;){const ds=d.toISOString().slice(0,10);
     if(days.has(ds)){s++;d.setDate(d.getDate()-1);}
@@ -166,7 +184,7 @@ function readingStreak(roll){
     else break;}
   return s;
 }
-function totalMin(roll){return DB.reading.filter(r=>r.roll==roll).reduce((a,b)=>a+(+b.minutes||0),0);}
+function totalMin(roll){return DB.reading.filter(r=>r.roll==roll&&r.group_id===curGroup).reduce((a,b)=>a+(+b.minutes||0),0);}
 
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');
   clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2400);}
@@ -174,14 +192,35 @@ function toast(m){const t=document.getElementById('toast');t.textContent=m;t.cla
 let studentName=null;
 let tmpMin={morning:0,evening:0};
 
+function groupLabel(id){return (GROUPS.find(g=>g.id===id)||{}).name||id;}
+function groupIcon(id){return (GROUPS.find(g=>g.id===id)||{}).icon||'📘';}
+
+function renderGroupPicker(){
+  const app=document.getElementById('app');
+  app.innerHTML=`
+   <div class="card" style="text-align:center">
+     <div style="font-size:40px">📚</div>
+     <h3 style="margin:6px 0 4px">Choose your group</h3>
+     <p style="color:var(--muted);font-size:13px;margin:0 0 14px">Select which group you belong to</p>
+     <div style="display:flex;flex-direction:column;gap:9px">
+     ${GROUPS.map(g=>`<button class="btn" style="background:#fff;color:var(--ink);border:1.5px solid var(--line);box-shadow:none;justify-content:flex-start;padding:13px 16px"
+        onclick="chooseGroup('${g.id}')">${g.icon} ${g.name}</button>`).join('')}
+     </div>
+   </div>`;
+}
+function chooseGroup(id){curGroup=id;studentName=null;render();}
+
 function render(){
+  if(!curGroup){renderGroupPicker();return;}
   const studs=activeStudents(),app=document.getElementById('app');
   const today=todayStr();
-  document.getElementById('dateLabel').textContent=
-    new Date().toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
+  document.getElementById('dateLabel').innerHTML=
+    new Date().toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})+
+    ` <span class="grp-chip" style="margin-left:6px">${groupIcon(curGroup)} ${groupLabel(curGroup)}</span>`;
 
   if(!studs.length){app.innerHTML=`<div class="card empty"><div class="ic">🕊️</div>
-    <p>No students added yet. Check back soon.</p></div>`;return;}
+    <p>No students added yet in ${groupLabel(curGroup)}.<br>Check back soon.</p></div>
+    <button class="btn" style="margin-top:10px;background:#fff;color:var(--ink);border:1.5px solid var(--line);box-shadow:none" onclick="curGroup=null;render()">← Choose different group</button>`;return;}
 
   const mEntry=studentName?getEntry(studentName,today,'morning'):null;
   const eEntry=studentName?getEntry(studentName,today,'evening'):null;
@@ -198,7 +237,10 @@ function render(){
 
   app.innerHTML=`
   <div class="card">
-    <label class="fld">Select your name</label>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <label class="fld" style="margin:0">Select your name</label>
+      <button onclick="curGroup=null;render()" style="background:none;border:none;color:var(--primary);font-size:12px;font-weight:700">↺ Switch group</button>
+    </div>
     <select class="inp" onchange="studentName=this.value;render()">
       <option value="">— Select your name —</option>
       ${studs.map(s=>`<option value="${s.roll}" ${studentName==s.roll?'selected':''}>${s.roll}. ${s.name}</option>`).join('')}
@@ -207,7 +249,6 @@ function render(){
     ${studentName?`
     ${locked?`<div class="lock-msg">🔒 Entries locked after 11:59 PM. New entries open tomorrow.</div>`:''}
 
-    <!-- MORNING -->
     <div class="session-box morning">
       <div class="session-title">🌅 Morning Reading</div>
       <div class="hm-row">
@@ -224,14 +265,13 @@ function render(){
           <span class="hm-lbl">min</span>
         </div>
       </div>
-      <div style="text-align:center;color:var(--muted);font-size:13px;margin:8px 0 12px">= ${tmpMin.morning} minutes</div>
+      <div style="text-align:center;color:var(--muted);font-size:13px;margin:8px 0 12px">= <span id="mPreview">${tmpMin.morning}</span> minutes</div>
       <button class="btn amber" ${locked?'disabled':''} onclick="submit('morning')">
         ${mEntry&&mEntry.minutes>0?'✓ Update morning':'☀️ Save morning reading'}
       </button>
       ${mEntry&&mEntry.minutes>0?`<div style="text-align:center;margin-top:8px;color:#d97706;font-size:13px;font-weight:600">✓ Saved: ${Math.floor(mEntry.minutes/60)}h ${mEntry.minutes%60}m</div>`:''}
     </div>
 
-    <!-- EVENING -->
     <div class="session-box evening" style="margin-top:12px">
       <div class="session-title">🌙 Evening Reading</div>
       <div class="hm-row">
@@ -248,14 +288,13 @@ function render(){
           <span class="hm-lbl">min</span>
         </div>
       </div>
-      <div style="text-align:center;color:var(--muted);font-size:13px;margin:8px 0 12px">= ${tmpMin.evening} minutes</div>
+      <div style="text-align:center;color:var(--muted);font-size:13px;margin:8px 0 12px">= <span id="ePreview">${tmpMin.evening}</span> minutes</div>
       <button class="btn blue" ${locked?'disabled':''} onclick="submit('evening')">
         ${eEntry&&eEntry.minutes>0?'✓ Update evening':'🌙 Save evening reading'}
       </button>
       ${eEntry&&eEntry.minutes>0?`<div style="text-align:center;margin-top:8px;color:var(--blue);font-size:13px;font-weight:600">✓ Saved: ${Math.floor(eEntry.minutes/60)}h ${eEntry.minutes%60}m</div>`:''}
     </div>
 
-    <!-- STATS -->
     <div class="row" style="margin-top:14px">
       <div class="stat morning" style="flex:1"><div class="v">${tmpMin.morning}</div><div class="l">Today morning</div></div>
       <div class="stat evening" style="flex:1"><div class="v">${tmpMin.evening}</div><div class="l">Today evening</div></div>
@@ -268,7 +307,6 @@ function render(){
     `:''}
   </div>
 
-  <!-- WHO SUBMITTED TODAY -->
   <div class="card">
     <div class="section-t">Submitted today (${submittedToday.length}/${studs.length})</div>
     ${submittedToday.length
@@ -286,7 +324,12 @@ function setHM(session,unit,val){
   const h=Math.floor(cur/60), m=cur%60;
   if(unit==='h')tmpMin[session]=(+val)*60+m;
   else tmpMin[session]=h*60+(+val);
-  render();
+  // update only the small preview text — do NOT re-render the whole page
+  // (re-rendering destroys/recreates the <select> mid-interaction, which breaks
+  // selection on mobile Chrome)
+  const previewId=session==='morning'?'mPreview':'ePreview';
+  const el=document.getElementById(previewId);
+  if(el)el.textContent=tmpMin[session];
 }
 async function submit(session){
   if(!studentName){toast('Please select your name');return;}
@@ -296,7 +339,12 @@ async function submit(session){
   render();
 }
 
-(async function(){await initDB();render();})();
+(async function(){
+  await initDB();
+  const qg=new URLSearchParams(location.search).get('g');
+  if(qg && GROUPS.some(g=>g.id===qg)){curGroup=qg;}
+  render();
+})();
 </script>
 </body>
 </html>
