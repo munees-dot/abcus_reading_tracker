@@ -122,6 +122,7 @@ let sb=null,ONLINE=false;
 const LS="stReading_v3";
 let DB={students:{},reading:[]}; // students keyed by group_id
 let curGroup=null;
+let LOCKED_GROUP=false; // true when group came from ?g= URL param — hides "switch group" option
 
 function loadLocal(){
   try{const d=JSON.parse(localStorage.getItem(LS));if(d)DB={...DB,...d};}catch(e){}
@@ -220,7 +221,7 @@ function render(){
 
   if(!studs.length){app.innerHTML=`<div class="card empty"><div class="ic">🕊️</div>
     <p>No students added yet in ${groupLabel(curGroup)}.<br>Check back soon.</p></div>
-    <button class="btn" style="margin-top:10px;background:#fff;color:var(--ink);border:1.5px solid var(--line);box-shadow:none" onclick="curGroup=null;render()">← Choose different group</button>`;return;}
+    ${LOCKED_GROUP?'':'<button class="btn" style="margin-top:10px;background:#fff;color:var(--ink);border:1.5px solid var(--line);box-shadow:none" onclick="curGroup=null;render()">← Choose different group</button>'}`;return;}
 
   const mEntry=studentName?getEntry(studentName,today,'morning'):null;
   const eEntry=studentName?getEntry(studentName,today,'evening'):null;
@@ -239,7 +240,7 @@ function render(){
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
       <label class="fld" style="margin:0">Select your name</label>
-      <button onclick="curGroup=null;render()" style="background:none;border:none;color:var(--primary);font-size:12px;font-weight:700">↺ Switch group</button>
+      ${LOCKED_GROUP?'':'<button onclick="curGroup=null;render()" style="background:none;border:none;color:var(--primary);font-size:12px;font-weight:700">↺ Switch group</button>'}
     </div>
     <select class="inp" onchange="studentName=this.value;render()">
       <option value="">— Select your name —</option>
@@ -342,7 +343,7 @@ async function submit(session){
 (async function(){
   await initDB();
   const qg=new URLSearchParams(location.search).get('g');
-  if(qg && GROUPS.some(g=>g.id===qg)){curGroup=qg;}
+  if(qg && GROUPS.some(g=>g.id===qg)){curGroup=qg;LOCKED_GROUP=true;}
   render();
 })();
 </script>
