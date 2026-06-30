@@ -64,9 +64,9 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
 /* Bottom nav (admin) */
 .nav{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);
   display:flex;z-index:60;padding:6px 4px env(safe-area-inset-bottom);box-shadow:0 -2px 16px rgba(0,0,0,.04)}
-.nav button{flex:1;background:none;border:none;color:var(--muted);font-size:10.5px;font-weight:600;
-  display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 2px;border-radius:10px}
-.nav button .ic{font-size:20px;line-height:1}
+.nav button{flex:1;background:none;border:none;color:var(--muted);font-size:9.5px;font-weight:600;
+  display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 1px;border-radius:10px}
+.nav button .ic{font-size:18px;line-height:1}
 .nav button.on{color:var(--primary)}
 .nav button.on .ic{transform:translateY(-1px)}
 
@@ -160,6 +160,7 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
 <div class="nav hidden" id="nav">
   <button data-tab="students" onclick="setTab('students')"><span class="ic">👥</span>Students</button>
   <button data-tab="reading" onclick="setTab('reading')"><span class="ic">📖</span>Reading</button>
+  <button data-tab="readrep" onclick="setTab('readrep')"><span class="ic">📈</span>RdReport</button>
   <button data-tab="meet" onclick="setTab('meet')"><span class="ic">🎥</span>Meet</button>
   <button data-tab="exams" onclick="setTab('exams')"><span class="ic">📝</span>Exams</button>
   <button data-tab="assign" onclick="setTab('assign')"><span class="ic">📋</span>Tasks</button>
@@ -193,25 +194,24 @@ const PRESET_STUDENTS=[
   {roll:6,name:"ASWIN",active:true},
   {roll:7,name:"AHAMMED SHAMIL K",active:true},
   {roll:8,name:"ABHAY KRISHNA KK",active:true},
-  {roll:9,name:"AFEEF C",active:true},
-  {roll:10,name:"RISHA FATHIMA",active:true},
-  {roll:11,name:"MUHAMMED HASIM KV",active:true},
-  {roll:12,name:"MIRSHA RASLAN",active:true},
-  {roll:13,name:"MUHAMMED MUZAMMIL KT",active:true},
-  {roll:14,name:"ADHITYAN T",active:true},
-  {roll:15,name:"RIYA P",active:true},
-  {roll:16,name:"ARJUN",active:true},
-  {roll:17,name:"MUHAMMED DANISH",active:true},
-  {roll:18,name:"SANA NAZRIN MK",active:true},
-  {roll:19,name:"ABHINAV KRISHNA K",active:true},
-  {roll:20,name:"ZAYAN K",active:true},
-  {roll:21,name:"FAHIS C",active:true},
-  {roll:22,name:"SABIN KRISHNA",active:true},
-  {roll:23,name:"ABHAY KRISHNA P",active:true},
-  {roll:24,name:"MUHAMMED FAHEEM K",active:true},
-  {roll:25,name:"FATHIMA AMNA K",active:true},
-  {roll:26,name:"MUHAMMED MISHAL",active:true},
-  {roll:27,name:"MUHAMMED RISHAL UP",active:true},
+  {roll:9,name:"RISHA FATHIMA",active:true},
+  {roll:10,name:"MUHAMMED HASIM KV",active:true},
+  {roll:11,name:"MIRSHA RASLAN",active:true},
+  {roll:12,name:"MUHAMMED MUZAMMIL KT",active:true},
+  {roll:13,name:"ADHITYAN T",active:true},
+  {roll:14,name:"RIYA P",active:true},
+  {roll:15,name:"ARJUN",active:true},
+  {roll:16,name:"MUHAMMED DANISH",active:true},
+  {roll:17,name:"SANA NAZRIN MK",active:true},
+  {roll:18,name:"ABHINAV KRISHNA K",active:true},
+  {roll:19,name:"ZAYAN K",active:true},
+  {roll:20,name:"FAHIS C",active:true},
+  {roll:21,name:"SABIN KRISHNA",active:true},
+  {roll:22,name:"ABHAY KRISHNA P",active:true},
+  {roll:23,name:"MUHAMMED FAHEEM K",active:true},
+  {roll:24,name:"FATHIMA AMNA K",active:true},
+  {roll:25,name:"MUHAMMED MISHAL",active:true},
+  {roll:26,name:"MUHAMMED RISHAL UP",active:true},
 ];
 function loadLocal(){
   try{const d=JSON.parse(localStorage.getItem(LS));if(d)DB={...DB,...d};}catch(e){}
@@ -421,7 +421,7 @@ function enterAdmin(){
    ============================================================ */
 function renderAdmin(){
   document.getElementById('sub').textContent="Teacher dashboard";
-  ({students:renderStudentsTab,reading:renderReadingTab,meet:renderMeetTab,
+  ({students:renderStudentsTab,reading:renderReadingTab,readrep:renderReadingReportTab,meet:renderMeetTab,
     exams:renderExamsTab,assign:renderAssignTab,perf:renderPerfTab}[TAB])();
 }
 
@@ -467,13 +467,18 @@ async function rmStudent(roll){
   await del('students',{roll});renderStudentsTab();
 }
 
-/* ---- READING (admin view/correct) ---- */
+/* ---- READING (admin view/correct) — morning + evening ---- */
 let readDate=todayStr();
+function getR(roll,d,session){return DB.reading.find(x=>x.roll==roll&&x.d===d&&x.session===session);}
 function renderReadingTab(){
   const s=activeStudents();
-  const rows=s.map(st=>{const r=DB.reading.find(x=>x.roll==st.roll&&x.d===readDate);
-    return{st,min:r?r.minutes:null};});
-  const done=rows.filter(r=>r.min>0).length;
+  const rows=s.map(st=>{
+    const m=getR(st.roll,readDate,'morning');
+    const e=getR(st.roll,readDate,'evening');
+    return{st,m:m?m.minutes:null,e:e?e.minutes:null};
+  });
+  const done=rows.filter(r=>(r.m>0)||(r.e>0)).length;
+  const totMin=rows.reduce((a,b)=>a+(b.m||0)+(b.e||0),0);
   document.getElementById('app').innerHTML=`
    <div class="card">
      <h3>Reading log</h3>
@@ -481,7 +486,7 @@ function renderReadingTab(){
      <input class="inp" type="date" value="${readDate}" onchange="readDate=this.value;renderReadingTab()">
      <div class="stat-grid" style="margin-top:12px">
        <div class="stat"><div class="v">${done}/${s.length}</div><div class="l">Submitted</div></div>
-       <div class="stat"><div class="v">${rows.reduce((a,b)=>a+(b.min||0),0)}</div><div class="l">total minutes</div></div>
+       <div class="stat"><div class="v">${totMin}</div><div class="l">total minutes</div></div>
      </div>
    </div>
    <div class="card">
@@ -490,8 +495,18 @@ function renderReadingTab(){
        ${rows.map(r=>`<div class="item">
          <div class="av">${initials(r.st.name)}</div>
          <div class="nm"><b>${r.st.name}</b><small>Roll ${r.st.roll}</small></div>
-         <input class="inp" style="width:78px;text-align:center" type="number" min="0" value="${r.min!=null?r.min:''}"
-            placeholder="—" onchange="setReading(${r.st.roll},this.value)">
+         <div style="display:flex;flex-direction:column;gap:4px">
+           <div style="display:flex;align-items:center;gap:5px">
+             <span style="font-size:11px;color:var(--muted);width:18px">🌅</span>
+             <input class="inp" style="width:64px;text-align:center;padding:7px" type="number" min="0"
+               value="${r.m!=null?r.m:''}" placeholder="—" onchange="setReading(${r.st.roll},'morning',this.value)">
+           </div>
+           <div style="display:flex;align-items:center;gap:5px">
+             <span style="font-size:11px;color:var(--muted);width:18px">🌙</span>
+             <input class="inp" style="width:64px;text-align:center;padding:7px" type="number" min="0"
+               value="${r.e!=null?r.e:''}" placeholder="—" onchange="setReading(${r.st.roll},'evening',this.value)">
+           </div>
+         </div>
        </div>`).join('')}
      </div>
    </div>
@@ -507,9 +522,105 @@ function renderReadingTab(){
      </div>
    </div>`;
 }
-async function setReading(roll,val){
-  await up('reading',{roll:+roll,d:readDate,minutes:val===''?0:+val},['roll','d']);
+async function setReading(roll,session,val){
+  await up('reading',{roll:+roll,d:readDate,session,minutes:val===''?0:+val},['roll','d','session']);
   toast('Updated ✓');
+  renderReadingTab();
+}
+
+/* ============================================================
+   READING REPORT — daily / weekly / monthly / overall
+   ============================================================ */
+let repView='daily', repDate=todayStr(), repWeekStart=null, repMonth=todayStr().slice(0,7);
+
+function dateRangeWeek(anyDateStr){
+  const d=new Date(anyDateStr+'T00:00');
+  const day=d.getDay(); // 0=Sun
+  const offset=(day===0?-6:1-day); // week starts Monday
+  const start=new Date(d); start.setDate(d.getDate()+offset);
+  const end=new Date(start); end.setDate(start.getDate()+6);
+  return [start.toISOString().slice(0,10), end.toISOString().slice(0,10)];
+}
+function fmtShort(s){const d=new Date(s+'T00:00');return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short'});}
+
+function sumFor(roll,startD,endD,session){
+  return DB.reading.filter(r=>r.roll==roll && r.d>=startD && r.d<=endD &&
+     (session?r.session===session:true)).reduce((a,b)=>a+(+b.minutes||0),0);
+}
+function daysActiveFor(roll,startD,endD){
+  return new Set(DB.reading.filter(r=>r.roll==roll && r.d>=startD && r.d<=endD && r.minutes>0).map(r=>r.d)).size;
+}
+
+function renderReadingReportTab(){
+  const s=activeStudents();
+  if(!repWeekStart)repWeekStart=dateRangeWeek(todayStr())[0];
+
+  let startD,endD,label;
+  if(repView==='daily'){startD=endD=repDate;label=fmtShort(repDate);}
+  else if(repView==='weekly'){const[ws,we]=dateRangeWeek(repWeekStart);startD=ws;endD=we;label=`${fmtShort(ws)} – ${fmtShort(we)}`;}
+  else if(repView==='monthly'){startD=repMonth+'-01';const last=new Date(+repMonth.slice(0,4),+repMonth.slice(5,7),0).getDate();
+    endD=repMonth+'-'+String(last).padStart(2,'0');
+    label=new Date(repMonth+'-01').toLocaleDateString('en-GB',{month:'long',year:'numeric'});}
+  else {const all=DB.reading.map(r=>r.d).sort();startD=all[0]||todayStr();endD=todayStr();label='All-time (overall)';}
+
+  const rows=s.map(st=>{
+    const m=sumFor(st.roll,startD,endD,'morning');
+    const e=sumFor(st.roll,startD,endD,'evening');
+    const days=daysActiveFor(st.roll,startD,endD);
+    return{st,m,e,tot:m+e,days};
+  }).sort((a,b)=>b.tot-a.tot);
+
+  const classTotal=rows.reduce((a,b)=>a+b.tot,0);
+  const classAvg=rows.length?Math.round(classTotal/rows.length):0;
+  const activeCount=rows.filter(r=>r.tot>0).length;
+
+  document.getElementById('app').innerHTML=`
+   <div class="card">
+     <h3>📈 Reading Report</h3>
+     <div class="seg" style="margin-top:12px">
+       <button class="${repView==='daily'?'on':''}" onclick="repView='daily';renderReadingReportTab()">Daily</button>
+       <button class="${repView==='weekly'?'on':''}" onclick="repView='weekly';renderReadingReportTab()">Weekly</button>
+       <button class="${repView==='monthly'?'on':''}" onclick="repView='monthly';renderReadingReportTab()">Monthly</button>
+       <button class="${repView==='overall'?'on':''}" onclick="repView='overall';renderReadingReportTab()">Overall</button>
+     </div>
+
+     ${repView==='daily'?`<label class="fld" style="margin-top:14px">Date</label>
+        <input class="inp" type="date" value="${repDate}" onchange="repDate=this.value;renderReadingReportTab()">`:''}
+     ${repView==='weekly'?`<label class="fld" style="margin-top:14px">Any date in week</label>
+        <input class="inp" type="date" value="${repWeekStart}" onchange="repWeekStart=this.value;renderReadingReportTab()">`:''}
+     ${repView==='monthly'?`<label class="fld" style="margin-top:14px">Month</label>
+        <input class="inp" type="month" value="${repMonth}" onchange="repMonth=this.value;renderReadingReportTab()">`:''}
+
+     <div style="text-align:center;margin-top:14px;color:var(--muted);font-weight:600">${label}</div>
+
+     <div class="stat-grid" style="margin-top:12px">
+       <div class="stat"><div class="v">${activeCount}/${s.length}</div><div class="l">Students read</div></div>
+       <div class="stat"><div class="v">${classTotal}</div><div class="l">Class total min</div></div>
+       <div class="stat morning"><div class="v">${rows.reduce((a,b)=>a+b.m,0)}</div><div class="l">🌅 Morning total</div></div>
+       <div class="stat evening"><div class="v">${rows.reduce((a,b)=>a+b.e,0)}</div><div class="l">🌙 Evening total</div></div>
+     </div>
+     <div class="stat hot" style="margin-top:10px"><div class="v">${classAvg}</div><div class="l">Avg minutes / student (this period)</div></div>
+   </div>
+
+   <div class="card">
+     <div class="section-t" style="margin-top:0">Student-wise breakdown</div>
+     <div class="scroll"><table class="tbl">
+       <thead><tr><th>Name</th><th class="c">🌅</th><th class="c">🌙</th><th class="c">Total</th>${repView!=='daily'?'<th class="c">Days</th>':''}</tr></thead>
+       <tbody>
+       ${rows.map(r=>`<tr>
+         <td>${r.st.name}</td>
+         <td class="c">${r.m||'—'}</td>
+         <td class="c">${r.e||'—'}</td>
+         <td class="c"><b>${r.tot||'—'}</b></td>
+         ${repView!=='daily'?`<td class="c">${r.days}</td>`:''}
+       </tr>`).join('')}
+       </tbody>
+     </table></div>
+   </div>
+
+   <div class="card no-print">
+     <button class="btn ghost" onclick="window.print()">🖨️ Print this report</button>
+   </div>`;
 }
 
 /* ---- MEET ATTENDANCE ---- */
