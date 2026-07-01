@@ -651,22 +651,41 @@ function renderReadingTab(){
   });
   const done=rows.filter(r=>(r.m>0)||(r.e>0)).length;
   const totMin=rows.reduce((a,b)=>a+(b.m||0)+(b.e||0),0);
+  const notReading=rows.filter(r=>!(r.m>0)&&!(r.e>0));
+  const grpName=groupNameOf(curGroup);
   document.getElementById('app').innerHTML=`
    <div class="card">
      <h3>Reading log</h3>
      <label class="fld" style="margin-top:12px">Date</label>
      <input class="inp" type="date" value="${readDate}" onchange="readDate=this.value;renderReadingTab()">
      <div class="stat-grid" style="margin-top:12px">
-       <div class="stat"><div class="v">${done}/${s.length}</div><div class="l">Submitted</div></div>
-       <div class="stat"><div class="v">${totMin}</div><div class="l">total minutes</div></div>
+       <div class="stat"><div class="v">${done}/${s.length}</div><div class="l">✅ Submitted</div></div>
+       <div class="stat" style="background:#fdecec"><div class="v" style="color:var(--red)">${notReading.length}</div><div class="l">❌ Not reading</div></div>
      </div>
    </div>
+
+   ${notReading.length?`
+   <div class="card" style="border:1.5px solid #fca5a5">
+     <div class="section-t" style="margin-top:0;color:var(--red)">❌ Not reading today (${notReading.length})</div>
+     <div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px">
+       ${notReading.map(r=>`<span class="pill" style="background:#fdecec;color:var(--red)">
+         ${r.st.name.split(' ')[0]}</span>`).join('')}
+     </div>
+     <button class="btn" style="background:#25D366;box-shadow:0 4px 14px rgba(37,211,102,.3)"
+       onclick="sendReadingReminder()">
+       📤 Send WhatsApp reminder
+     </button>
+   </div>`:'<div class="card" style="border:1.5px solid #bbf7d0;text-align:center;padding:18px"><span style="font-size:24px">🎉</span><br><b style="color:var(--green)">Everyone has submitted today!</b></div>'}
+
    <div class="card">
-     <div class="section-t" style="margin-top:0">Edit / correct</div>
+     <div class="section-t" style="margin-top:0">Edit / correct <span style="font-weight:400;font-size:11px;color:var(--muted)">(Tap name → performance)</span></div>
      <div class="lst">
        ${rows.map(r=>`<div class="item" style="flex-wrap:wrap;gap:8px">
-         <div class="av">${initials(r.st.name)}</div>
-         <div class="nm"><b>${r.st.name}</b><small>Roll ${r.st.roll}</small></div>
+         <div class="av" onclick="showReport(${r.st.roll})" style="cursor:pointer;background:${(r.m>0||r.e>0)?'var(--soft)':'#fdecec'}">${initials(r.st.name)}</div>
+         <div class="nm" onclick="showReport(${r.st.roll})" style="cursor:pointer">
+           <b>${r.st.name}</b>
+           <small>${(r.m>0||r.e>0)?'✅ '+hm((r.m||0)+(r.e||0)):'❌ Not submitted'}</small>
+         </div>
          <div style="display:flex;flex-direction:column;gap:6px;width:100%">
            <div style="display:flex;align-items:center;gap:8px">
              <span style="font-size:14px">🌅</span>
@@ -700,19 +719,35 @@ function renderReadingTab(){
      <div class="section-t" style="margin-top:0">🏆 Reading leaderboard (streak)</div>
      <div class="lst">
        ${[...s].map(st=>({st,sk:readingStreak(st.roll),tot:gReading().filter(x=>x.roll==st.roll).reduce((a,b)=>a+(+b.minutes||0),0)}))
-         .sort((a,b)=>b.sk-a.sk||b.tot-a.tot).slice(0,10).map((o,i)=>`<div class="item">
+         .sort((a,b)=>b.sk-a.sk||b.tot-a.tot).slice(0,10).map((o,i)=>`<div class="item" onclick="showReport(${o.st.roll})" style="cursor:pointer">
          <div class="av" style="background:${i<3?'#fff5e6':'var(--soft)'}">${['🥇','🥈','🥉'][i]||i+1}</div>
-         <div class="nm"><b>${o.st.name}</b><small>${o.tot} min total</small></div>
+         <div class="nm"><b>${o.st.name}</b><small>${hm(o.tot)} total</small></div>
          <span class="pill amber">🔥 ${o.sk}</span>
        </div>`).join('')}
      </div>
    </div>`;
+  _lastReminderData={names:notReading.map(r=>r.st.name),grpName,date:readDate};
   withGroupBar();
+}
+let _lastReminderData=null;
+function sendReadingReminder(){
+  if(!_lastReminderData)return;
+  const{names,grpName,date}=_lastReminderData;
+  const d=new Date(date+'T00:00');
+  const dayStr=d.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});
+  const lines=[];
+  lines.push(`📚 *Reading Reminder — ${grpName}*`);
+  lines.push(`📅 ${dayStr}`);
+  lines.push('');
+  lines.push(`*${names.length} students haven't submitted today's reading yet:*`);
+  names.forEach((n,i)=>lines.push(`${i+1}. ${n}`));
+  lines.push('');
+  lines.push('Please log your reading time today 📖');
+  window.open('https://wa.me/?text='+encodeURIComponent(lines.join('\n')),'_blank');
 }
 async function setReading(roll,session,val){
   await up('reading',{roll:+roll,d:readDate,session,minutes:val===''?0:+val},['roll','d','session']);
   toast('Updated ✓');
-  renderReadingTab();
 }
 async function setReadingHM(roll,session,unit,val){
   const cur=getR(roll,readDate,session);
@@ -1178,25 +1213,45 @@ function renderPerfTab(){
   withGroupBar();
 }
 function showReport(roll){
-  const st=DB.students.find(s=>s.roll==roll);const p=perfOf(roll);
+  const st=DB.students.find(s=>s.roll==roll&&(s.group_id||'class7a')===curGroup);
+  if(!st)return;
+  const p=perfOf(roll);
   const s=activeStudents();
   const rank=s.map(x=>({roll:x.roll,o:perfOf(x.roll).overall??-1})).sort((a,b)=>b.o-a.o)
     .findIndex(x=>x.roll==roll)+1;
-  openModal(`Report — ${st.name}`,`
+  // last 7 days reading
+  const last7=[...Array(7).keys()].map(i=>{
+    const d=new Date();d.setDate(d.getDate()-6+i);
+    const ds=d.toISOString().slice(0,10);
+    const m=getR(roll,ds,'morning');const e=getR(roll,ds,'evening');
+    return{ds,m:m?m.minutes:0,e:e?e.minutes:0,tot:(m?m.minutes:0)+(e?e.minutes:0),
+      day:d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric'})};
+  });
+  openModal(`📊 ${st.name}`,`
     <div style="text-align:center;margin-bottom:6px">
-      <div class="av" style="width:60px;height:60px;font-size:22px;margin:0 auto 8px;border-radius:16px">${initials(st.name)}</div>
-      <div style="color:var(--muted);font-size:13px">Roll ${st.roll} · Class rank #${rank}/${s.length}</div>
-      <div style="margin-top:8px">${gradeBadge(p.overall)} <b style="font-size:20px">${p.overall!=null?p.overall+'%':'—'}</b> overall</div>
+      <div class="av" style="width:56px;height:56px;font-size:20px;margin:0 auto 8px;border-radius:14px">${initials(st.name)}</div>
+      <div style="color:var(--muted);font-size:13px">Roll ${st.roll} · Rank #${rank}/${s.length}</div>
+      <div style="margin-top:6px">${gradeBadge(p.overall)} <b style="font-size:18px">${p.overall!=null?p.overall+'%':'—'}</b> overall</div>
     </div>
-    <div class="stat-grid" style="margin-top:12px">
-      <div class="stat hot"><div class="v">🔥 ${p.streak}</div><div class="l">Reading streak</div></div>
-      <div class="stat"><div class="v">${p.readMin}</div><div class="l">Total min (${p.readDays} days)</div></div>
-      <div class="stat"><div class="v">${p.attPct!=null?p.attPct+'%':'—'}</div><div class="l">Meet attendance (${p.present}/${p.sessions})</div></div>
-      <div class="stat"><div class="v">${p.examPct!=null?p.examPct+'%':'—'}</div><div class="l">Exam average</div></div>
-      <div class="stat"><div class="v">${p.asgPct!=null?p.asgPct+'%':'—'}</div><div class="l">Assignment marks</div></div>
-      <div class="stat"><div class="v">${p.asgRate!=null?p.asgRate+'%':'—'}</div><div class="l">Submitted (${p.subC}/${gAssignments().length})</div></div>
+    <div class="stat-grid" style="margin-top:10px">
+      <div class="stat hot"><div class="v">🔥 ${p.streak}</div><div class="l">Day streak</div></div>
+      <div class="stat"><div class="v">${hm(p.readMin)}</div><div class="l">Total reading (${p.readDays}d)</div></div>
+      <div class="stat"><div class="v">${p.attPct!=null?p.attPct+'%':'—'}</div><div class="l">Meet attendance</div></div>
+      <div class="stat"><div class="v">${p.examPct!=null?p.examPct+'%':'—'}</div><div class="l">Exam avg</div></div>
     </div>
-    <div class="section-t">Exam-wise</div>
+    <div class="section-t" style="margin-top:14px">Last 7 days reading</div>
+    <div class="scroll"><table class="tbl">
+      <thead><tr><th>Day</th><th class="c">🌅</th><th class="c">🌙</th><th class="c">Total</th></tr></thead>
+      <tbody>
+      ${last7.map(d=>`<tr style="${d.tot>0?'':'color:var(--red)'}">
+        <td>${d.day}</td>
+        <td class="c">${d.m?hm(d.m):'—'}</td>
+        <td class="c">${d.e?hm(d.e):'—'}</td>
+        <td class="c"><b>${d.tot?hm(d.tot):'❌'}</b></td>
+      </tr>`).join('')}
+      </tbody>
+    </table></div>
+    <div class="section-t" style="margin-top:14px">Exams</div>
     <div class="scroll"><table class="tbl"><tbody>
       ${gExams().map(e=>{const m=DB.exam_marks.find(x=>x.exam_id==e.id&&x.roll==roll);
         return `<tr><td>${e.name}<br><small style="color:var(--muted)">${e.subject||''}</small></td>
@@ -1204,7 +1259,27 @@ function showReport(roll){
         <td class="c">${m&&m.marks!=null?gradeBadge(Math.round(m.marks/e.max*100)):'—'}</td></tr>`;}).join('')
         ||'<tr><td style="color:var(--muted)">No exams</td></tr>'}
     </tbody></table></div>
-    <button class="btn ghost" style="margin-top:16px" onclick="closeModal()">Close</button>`);
+    <div class="row" style="margin-top:14px">
+      <button class="btn" style="background:#25D366;box-shadow:0 4px 14px rgba(37,211,102,.3)"
+        onclick="shareStudentReport()">📤 Share</button>
+      <button class="btn ghost" onclick="closeModal()">Close</button>
+    </div>`);
+  _lastStudentReport={name:st.name, p};
+}
+let _lastStudentReport=null;
+function shareStudentReport(){
+  if(!_lastStudentReport)return;
+  const{name,p}=_lastStudentReport;
+  const lines=[];
+  lines.push(`📊 *Student Report — ${name}*`);
+  lines.push(`📅 ${new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}`);
+  lines.push('');
+  lines.push(`🔥 Reading streak: ${p.streak} days`);
+  lines.push(`📖 Total reading: ${hm(p.readMin)}`);
+  if(p.attPct!=null) lines.push(`🎥 Meet attendance: ${p.attPct}%`);
+  if(p.examPct!=null) lines.push(`📝 Exam average: ${p.examPct}%`);
+  if(p.overall!=null) lines.push(`⭐ Overall: ${p.overall}%`);
+  window.open('https://wa.me/?text='+encodeURIComponent(lines.join('\n')),'_blank');
 }
 
 /* ============================================================
